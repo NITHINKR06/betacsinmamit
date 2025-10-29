@@ -46,59 +46,41 @@ export const validateEmailJSConfig = () => {
 }
 
 // Email template parameters helper
-export const createOTPEmailParams = (toEmail, toName, otp) => {
-  // EmailJS might use different parameter names
-  // Common variations: to_email, user_email, email, recipient_email
-  return {
-    // Try multiple email field names for compatibility
-    to_email: toEmail,
-    user_email: toEmail,  // Alternative field name
-    email: toEmail,       // Another common field name
-    recipient_email: toEmail, // Another variation
+export const createOTPEmailParams = (email, name, otp) => {
+  // Calculate expiry time, e.g., "12:45 PM"
+  // Note: This matches the 10-minute expiry set in emailService.js
+  const expiry = new Date(Date.now() + 10 * 60 * 1000); 
+  const timeString = expiry.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+
+  const templateParams = {
+    // --- Aliases for email ---
+    to_email: email,
+    user_email: email,
+    email: email,
+    recipient_email: email,
     
-    // Name fields
-    to_name: toName || 'Admin',
-    user_name: toName || 'Admin',  // Alternative field name
-    name: toName || 'Admin',       // Another common field name
+    // --- Aliases for name ---
+    to_name: name,
+    user_name: name,
+    name: name,
     
-    // OTP and other fields - try ALL possible variations
-    from_name: 'CSI NMAMIT',
-    reply_to: 'csidatabasenmamit@gmail.com',
+    // --- Variables for your template ---
+    passcode: otp, // Matches {{passcode}}
+    time: timeString, // Matches {{time}}
     
-    // All possible OTP field variations
-    passcode: otp,  // YOUR TEMPLATE USES THIS!
+    // --- Keep old aliases just in case ---
     otp_code: otp,
     otp: otp,
     code: otp,
-    OTP: otp,  // Uppercase variation
-    OTP_CODE: otp,  // Uppercase with underscore
-    otpCode: otp,  // camelCase
-    verification_code: otp,
-    verificationCode: otp,
-    pin: otp,
-    PIN: otp,
-    token: otp,
-    
-    // Time validity and expiry
-    time: new Date(Date.now() + 15 * 60 * 1000).toLocaleString('en-US', { 
-      hour: 'numeric', 
-      minute: 'numeric', 
-      hour12: true,
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    }),  // YOUR TEMPLATE USES THIS! Format: "Dec 19, 2024, 3:15 PM"
-    valid_time: '15 minutes',
-    validity: '15 minutes',
-    expiry_time: '15 minutes',
-    
-    current_year: new Date().getFullYear(),
-    
-    // Additional parameters
-    app_name: 'CSI NMAMIT Admin Panel',
-    support_email: 'csidatabasenmamit@gmail.com',
-    message: `Your OTP code is: ${otp}. Valid for 10 minutes.` // Fallback message field
+    // --- End Changes ---
+
+    from_name: 'CSI NMAMIT Admin'
   }
+  return templateParams
 }
 
 // SMTP Configuration Guide for EmailJS

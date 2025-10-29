@@ -134,13 +134,7 @@ export const AdminAuthProvider = ({ children }) => {
         if (!auth) return
         
         const result = await getRedirectResult(auth)
-        let user = result?.user
-
-        // Fallback: if no redirect result, check if user is already signed in
-        if (!user && auth?.currentUser) {
-          user = auth.currentUser
-        }
-
+        const user = result?.user
         if (!user) return
 
         // Check whitelist

@@ -52,11 +52,11 @@ class EmailService {
   async sendOTPEmail(email, name) {
     try {
       // Debug: Log configuration status
-      // console.log('📧 EmailJS Configuration Check:')
-      // console.log('SERVICE_ID:', EMAILJS_CONFIG.SERVICE_ID ? '✅ Set' : '❌ Missing')
-      // console.log('OTP_TEMPLATE_ID:', EMAILJS_CONFIG.OTP_TEMPLATE_ID ? '✅ Set' : '❌ Missing')
-      // console.log('PUBLIC_KEY:', EMAILJS_CONFIG.PUBLIC_KEY ? '✅ Set' : '❌ Missing')
-      // console.log('Is Configured:', this.isConfigured)
+      console.log('📧 EmailJS Configuration Check:')
+      console.log('SERVICE_ID:', EMAILJS_CONFIG.SERVICE_ID ? '✅ Set' : '❌ Missing')
+      console.log('OTP_TEMPLATE_ID:', EMAILJS_CONFIG.OTP_TEMPLATE_ID ? '✅ Set' : '❌ Missing')
+      console.log('PUBLIC_KEY:', EMAILJS_CONFIG.PUBLIC_KEY ? '✅ Set' : '❌ Missing')
+      console.log('Is Configured:', this.isConfigured)
       
       // Check if EmailJS is configured
       if (!this.isConfigured) {
@@ -118,23 +118,24 @@ class EmailService {
 
       // Prepare email parameters for EmailJS template
       const templateParams = createOTPEmailParams(email, name, otp)
-      // console.log('📧 Template parameters prepared:')
-      // console.log('  Email fields:', {
-      //   to_email: templateParams.to_email,
-      //   user_email: templateParams.user_email,
-      //   email: templateParams.email,
-      //   recipient_email: templateParams.recipient_email
-      // })
-      // console.log('  Name:', templateParams.to_name)
-      // console.log('  OTP: ******')
-      // console.log('  Full params:', { ...templateParams, otp_code: '******', otp: '******', code: '******' })
+      console.log('📧 Template parameters prepared:')
+      console.log('  Email fields:', {
+        to_email: templateParams.to_email,
+        user_email: templateParams.user_email,
+        email: templateParams.email,
+        recipient_email: templateParams.recipient_email
+      })
+      console.log('  Name:', templateParams.to_name)
+      console.log('  OTP: ******')
+      console.log('  Full params:', { ...templateParams, otp_code: '******', otp: '******', code: '******' })
 
       // Send email using EmailJS
-      // console.log('📧 Sending email via EmailJS...')
+      console.log('📧 Sending email via EmailJS...')
       const response = await emailjs.send(
         EMAILJS_CONFIG.SERVICE_ID,
         EMAILJS_CONFIG.OTP_TEMPLATE_ID,
-        templateParams
+        templateParams,
+        EMAILJS_CONFIG.PUBLIC_KEY
       )
 
       // console.log('📧 EmailJS Response:', response)
@@ -171,6 +172,8 @@ class EmailService {
         // console.error('❌ Invalid EmailJS Template ID. Please check your VITE_EMAILJS_OTP_TEMPLATE_ID in .env.local')
       } else if (error.text?.includes('The daily quota')) {
         // console.error('❌ EmailJS daily quota exceeded. Please upgrade your plan or wait until tomorrow.')
+      } else if (error.status === 412 || error.text?.includes('Precondition Failed')) {
+        // console.warn('⚠️ EmailJS 412 Precondition Failed: Domain not authorized in EmailJS. Add current origin in EmailJS Dashboard → Account → Domains.')
       }
       
       // If EmailJS fails in development, still return OTP for testing
@@ -212,7 +215,8 @@ class EmailService {
       const response = await emailjs.send(
         EMAILJS_CONFIG.SERVICE_ID,
         templateId,
-        templateParams
+        templateParams,
+        EMAILJS_CONFIG.PUBLIC_KEY
       )
 
       return {

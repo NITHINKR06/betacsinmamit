@@ -89,18 +89,37 @@ export const AdminAuthProvider = ({ children }) => {
   const signInAdminWithGoogle = async () => {
     setAuthLoading(true)
     try {
-      // Always use Google auth; require OTP after redirect
+      // In development: try popup first to avoid redirect/cookie issues
+      if (import.meta.env?.DEV && auth && googleProvider) {
+        try {
+          const result = await signInWithPopup(auth, googleProvider)
+          const user = result?.user
+          if (user) {
+            // Whitelist check
+            if (!isWhitelistedAdmin(user.email)) {
+              await signOut(auth)
+              toast.error('Unauthorized: You are not an admin')
+              return null
+            }
+            // Prepare OTP step
+            setPendingAdmin({
+              uid: user.uid,
+              email: user.email,
+              name: user.displayName,
+              photoURL: user.photoURL
+            })
+            await sendOTPEmail(user.email, user.displayName || 'Admin')
+            return null
+          }
+        } catch (_) {
+          // Fallback to redirect if popup blocked or fails
+        }
+      }
+
+      // Use redirect flow otherwise; OTP will be triggered after redirect
       await signInWithRedirect(auth, googleProvider)
       return null
-      
-      // In demo mode, simulate admin user
-      // if (isDemoMode) {
-      //   user.email = 'csidatabasenmamit@gmail.com'
-      //   user.displayName = 'csi nmamit'
-      // }
-      // Remaining logic runs after redirect result is processed below
     } catch (error) {
-      // console.error('Error signing in:', error)
       toast.error('Failed to sign in. Please try again.')
       throw error
     } finally {
@@ -112,15 +131,12 @@ export const AdminAuthProvider = ({ children }) => {
   useEffect(() => {
     const handleRedirect = async () => {
       try {
-        // If Firebase auth not available, abort
-        if (!auth) {
-          return
-        }
+        if (!auth) return
+        
         const result = await getRedirectResult(auth)
         let user = result?.user
 
-        // Fallback: if there's no redirect result but Firebase already has a signed-in user,
-        // continue the flow to avoid getting stuck on /admin/login
+        // Fallback: if no redirect result, check if user is already signed in
         if (!user && auth?.currentUser) {
           user = auth.currentUser
         }
@@ -142,73 +158,35 @@ export const AdminAuthProvider = ({ children }) => {
           photoURL: user.photoURL
         })
 
-        // Send OTP and wait for verification step
+        // Send OTP via EmailJS
         await sendOTPEmail(user.email, user.displayName || 'Admin')
-        toast('OTP sent. Please verify to continue.')
       } catch (e) {
-        // console.error('Redirect handling error', e)
+        toast.error('Error handling sign-in redirect')
       }
     }
     handleRedirect()
   }, [])
 
 
-  // Send OTP Email (Step 2)
+  // Send OTP Email (Step 2) - Uses EmailJS only
   const sendOTPEmail = async (email, name) => {
     try {
-      // Use the frontend email service to send OTP directly through EmailJS
       const result = await emailService.sendOTPEmail(email, name)
       
       if (result.success) {
-        if (result.emailSkipped) {
-          // EmailJS not configured - development mode
-          toast.error('⚠️ Email service not configured! Check console for setup instructions.', { duration: 8000 })
-          // console.warn('📧 EmailJS is not configured. The OTP was not sent via email.')
-          // console.warn('To enable email sending:')
-          // console.warn('1. Sign up at https://www.emailjs.com/')
-          // console.warn('2. Follow the instructions in EMAILJS_SETUP.md')
-          // console.warn('3. Add credentials to .env.local file')
-          
-          // Only show OTP in console for development testing
-          if (import.meta.env.DEV && result.otp) {
-            // console.log(`🔐 Development OTP (not sent via email): ${result.otp}`)
-            toast.info(`Dev Mode - OTP: ${result.otp} (Email not sent)`, { duration: 10000 })
-          }
-        } else if (result.emailError) {
-          // Email sending failed but OTP generated
-          toast.error('⚠️ Email sending failed! Check console for OTP.', { duration: 8000 })
-          if (import.meta.env.DEV && result.otp) {
-            // console.log(`🔐 Fallback OTP (email failed): ${result.otp}`)
-            toast(`Dev Mode - OTP: ${result.otp} (Email failed)`, { 
-              duration: 10000,
-              icon: '⚠️'
-            })
-          }
-        } else {
-          // Email sent successfully
-          toast.success(`✅ OTP sent to ${email}! Check your inbox and spam folder.`, { duration: 6000 })
-          // console.log(`✅ OTP email sent successfully to ${email}`)
-          
-          // Don't show OTP in production when email is sent
-          if (import.meta.env.DEV && result.otp) {
-            // In dev mode, optionally show OTP for debugging even when email is sent
-            // console.log(`🔐 Dev Mode - OTP sent via email: ${result.otp}`)
-          }
-        }
+        toast.success(`OTP sent to ${email}. Check your inbox and spam folder.`)
+        setOtpSent(true)
+        
+        // Auto-expire OTP UI state
+        setTimeout(() => {
+          setOtpSent(false)
+        }, OTP_EXPIRY_TIME)
+      } else {
+        throw new Error('Failed to send OTP')
       }
-      
-      setOtpSent(true)
-      
-      // Auto-expire OTP UI state
-      setTimeout(() => {
-        setOtpSent(false)
-      }, OTP_EXPIRY_TIME)
-      
-      return true
     } catch (error) {
-      // console.error('❌ Error sending OTP:', error)
       toast.error(error.message || 'Failed to send OTP. Please try again.')
-      return false
+      setOtpSent(false)
     }
   }
   // Verify OTP (Step 3)

@@ -3,11 +3,19 @@ import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from '../../contexts/AdminAuthContext'
 import { Shield } from 'lucide-react'
 
+// Determine dev mode: use Vite's flag OR VITE_APP_ENV=development
+const IS_DEV_MODE = (import.meta.env?.DEV === true) || (import.meta.env?.VITE_APP_ENV === 'development')
+
 const AdminGuard = ({ children }) => {
   const { adminUser, loading } = useAdminAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
+    // In development mode, allow access without authentication
+    if (IS_DEV_MODE) {
+      return
+    }
+    
     if (!loading && !adminUser) {
       navigate('/admin/login')
     }
@@ -22,6 +30,11 @@ const AdminGuard = ({ children }) => {
         </div>
       </div>
     )
+  }
+
+  // In development mode, always allow access
+  if (IS_DEV_MODE) {
+    return children
   }
 
   if (!adminUser) {

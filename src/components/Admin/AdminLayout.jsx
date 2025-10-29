@@ -22,9 +22,13 @@ import {
   Clock,
   Activity,
   Home,
-  ChevronRight
+  ChevronRight,
+  Code
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+// Determine dev mode: use Vite's flag OR VITE_APP_ENV=development
+const IS_DEV_MODE = (import.meta.env?.DEV === true) || (import.meta.env?.VITE_APP_ENV === 'development')
 
 const AdminLayout = () => {
   const { adminUser, logoutAdmin, sessionExpiry, updateSessionTimeout } = useAdminAuth()
@@ -169,6 +173,17 @@ const AdminLayout = () => {
           </div>
         </div>
       </header>
+
+      {/* Development Mode Banner */}
+      {IS_DEV_MODE && (
+        <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-2">
+          <div className="flex items-center space-x-2 text-yellow-800 text-sm">
+            <Code className="w-4 h-4" />
+            <span className="font-semibold">Development Mode:</span>
+            <span>Admin authentication is bypassed. Anyone can access admin pages.</span>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-1">
         {/* Django-style Sidebar */}

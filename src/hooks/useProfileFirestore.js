@@ -98,6 +98,14 @@ export const useProfileFirestore = () => {
       return
     }
 
+    // Debug: Log authentication state
+    console.log('User authentication state:', {
+      uid: user.uid,
+      email: user.email,
+      name: user.name,
+      isAuthenticated: !!user.uid
+    })
+
     setLoading(true)
     try {
       const userRef = doc(db, 'users', user.uid)
@@ -110,12 +118,12 @@ export const useProfileFirestore = () => {
       const updateData = {
         // Core fields that match Firestore rules
         name: profileData.name || '',
-        bio: profileData.bio || null,
-        branch: profileData.branch || null,
-        usn: profileData.usn || null,
-        github: profileData.github || null,
-        linkedin: profileData.linkedin || null,
-        phone: profileData.phone || null,
+        bio: profileData.bio || '',
+        branch: profileData.branch || '',
+        usn: profileData.usn || '',
+        github: profileData.github || '',
+        linkedin: profileData.linkedin || '',
+        phone: profileData.phone || '',
         
         // Preserve existing fields
         email: existingData.email || user.email || profileData.email,
@@ -140,6 +148,9 @@ export const useProfileFirestore = () => {
         updateData.createdAt = serverTimestamp()
       }
 
+      // Debug: Log the data being sent
+      console.log('Sending data to Firestore:', updateData)
+      
       // Update Firestore document
       await setDoc(userRef, updateData, { merge: true })
       
@@ -147,15 +158,19 @@ export const useProfileFirestore = () => {
       setIsEditing(false)
       toast.success('Profile updated successfully!')
     } catch (error) {
-      // console.error('Error saving profile:', error)
+      console.error('Error saving profile:', error)
       
       // Provide more specific error messages
       if (error.code === 'permission-denied') {
         toast.error('Permission denied. Please make sure you are logged in.')
       } else if (error.code === 'unavailable') {
         toast.error('Service temporarily unavailable. Please try again later.')
+      } else if (error.code === 'invalid-argument') {
+        toast.error('Invalid data format. Please check your input and try again.')
+      } else if (error.code === 'failed-precondition') {
+        toast.error('Data validation failed. Please check your input.')
       } else {
-        toast.error('Failed to save profile. Please check your data and try again.')
+        toast.error(`Failed to save profile: ${error.message || 'Unknown error'}`)
       }
     } finally {
       setLoading(false)

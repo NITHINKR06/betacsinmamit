@@ -20,16 +20,10 @@ const AdminLogin = () => {
   const { 
     adminUser,
     authLoading,
-    otpSent,
-    pendingAdmin,
-    signInAdminWithGoogle,
-    verifyOTP,
-    resendOTP
+    signInAdminWithGoogle
   } = useAdminAuth()
 
-  const [otp, setOtp] = useState(['', '', '', '', '', ''])
-  const [resendTimer, setResendTimer] = useState(0)
-  const [verifying, setVerifying] = useState(false)
+  // OTP removed
 
   // Redirect if already logged in
   useEffect(() => {
@@ -38,94 +32,22 @@ const AdminLogin = () => {
     }
   }, [adminUser, navigate])
 
-  // Resend timer
-  useEffect(() => {
-    if (resendTimer > 0) {
-      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [resendTimer])
+  // OTP removed
 
   // Handle Google Sign In
   const handleGoogleSignIn = async () => {
     try {
       await signInAdminWithGoogle()
-      setResendTimer(60) // Start 60 second timer for resend
     } catch (error) {
       // console.error('Sign in error:', error)
     }
   }
 
-  // Handle OTP input
-  const handleOtpChange = (index, value) => {
-    if (value.length > 1) return // Prevent multiple characters
-    
-    const newOtp = [...otp]
-    newOtp[index] = value
-    setOtp(newOtp)
+  // OTP removed
 
-    // Auto-focus next input
-    if (value && index < 5) {
-      document.getElementById(`otp-${index + 1}`)?.focus()
-    }
-  }
+  // OTP removed
 
-  // Handle OTP key down
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      document.getElementById(`otp-${index - 1}`)?.focus()
-    }
-  }
-
-  // Handle OTP paste
-  const handleOtpPaste = (e) => {
-    e.preventDefault()
-    const pastedData = e.clipboardData.getData('text').slice(0, 6)
-    const newOtp = [...otp]
-    
-    for (let i = 0; i < pastedData.length; i++) {
-      if (/[0-9]/.test(pastedData[i])) {
-        newOtp[i] = pastedData[i]
-      }
-    }
-    
-    setOtp(newOtp)
-  }
-
-  // Verify OTP
-  const handleVerifyOTP = async () => {
-    const otpString = otp.join('')
-    if (otpString.length !== 6) {
-      toast.error('Please enter complete OTP')
-      return
-    }
-
-    setVerifying(true)
-    try {
-      const success = await verifyOTP(otpString)
-      if (success) {
-        navigate('/admin/dashboard')
-      }
-    } catch (error) {
-      // console.error('OTP verification error:', error)
-    } finally {
-      setVerifying(false)
-    }
-  }
-
-  // Resend OTP
-  const handleResendOTP = async () => {
-    if (resendTimer > 0) return
-    
-    try {
-      await resendOTP()
-      setResendTimer(60)
-      setOtp(['', '', '', '', '', ''])
-      toast.success('OTP resent successfully!')
-    } catch (error) {
-      // console.error('Resend OTP error:', error)
-    }
-  }
+  // OTP removed
 
   return (
     <div className="min-h-screen bg-[#f8f8f8] flex items-center justify-center p-4">
@@ -140,7 +62,7 @@ const AdminLogin = () => {
           {/* Content */}
           <div className="p-6">
             <AnimatePresence mode="wait">
-              {!otpSent ? (
+              {(
                 // Step 1: Google Sign In
                 <motion.div
                   key="signin"
@@ -177,118 +99,7 @@ const AdminLogin = () => {
                     )}
                   </button>
 
-                  <div className="mt-6 text-center">
-                    <p className="text-sm text-[#666]">
-                      After signing in, you'll receive an OTP for verification
-                    </p>
-                  </div>
-                </motion.div>
-              ) : (
-                // Step 2: OTP Verification
-                <motion.div
-                  key="otp"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                >
-                  <h2 className="text-xl font-normal text-[#333] mb-2">Verify OTP</h2>
-                  
-                  {pendingAdmin && (
-                    <div className="mb-6">
-                      <div className="flex items-center space-x-3 p-3 bg-[#f8f8f8] rounded">
-                        {pendingAdmin.photoURL ? (
-                          <img 
-                            src={pendingAdmin.photoURL} 
-                            alt={pendingAdmin.name}
-                            className="w-10 h-10 rounded-full"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-[#417690] rounded-full flex items-center justify-center">
-                            <User className="w-6 h-6 text-white" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-sm font-medium text-[#333]">{pendingAdmin.name}</p>
-                          <p className="text-xs text-[#666]">{pendingAdmin.email}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mb-4">
-                    <p className="text-sm text-[#666] mb-4">
-                      Enter the 6-digit code sent to your email
-                    </p>
-                    
-                    <div className="flex justify-center space-x-2">
-                      {otp.map((digit, index) => (
-                        <input
-                          key={index}
-                          id={`otp-${index}`}
-                          type="text"
-                          maxLength="1"
-                          value={digit}
-                          onChange={(e) => handleOtpChange(index, e.target.value)}
-                          onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                          onPaste={index === 0 ? handleOtpPaste : undefined}
-                          className="w-12 h-12 text-center text-lg font-semibold border border-[#ccc] rounded focus:outline-none focus:border-[#79aec8] focus:ring-1 focus:ring-[#79aec8]"
-                          autoFocus={index === 0}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleVerifyOTP}
-                    disabled={verifying || otp.join('').length !== 6}
-                    className="w-full px-4 py-2 bg-[#417690] text-white rounded hover:bg-[#205067] focus:outline-none focus:ring-2 focus:ring-[#79aec8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {verifying ? (
-                      <span className="flex items-center justify-center">
-                        <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-                        Verifying...
-                      </span>
-                    ) : (
-                      <span className="flex items-center justify-center">
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Verify OTP
-                      </span>
-                    )}
-                  </button>
-
-                  <div className="mt-4 flex items-center justify-between">
-                    <button
-                      onClick={handleResendOTP}
-                      disabled={resendTimer > 0}
-                      className="text-sm text-[#417690] hover:text-[#205067] disabled:text-gray-400 disabled:cursor-not-allowed"
-                    >
-                      {resendTimer > 0 ? (
-                        <span className="flex items-center">
-                          <Clock className="w-4 h-4 mr-1" />
-                          Resend in {resendTimer}s
-                        </span>
-                      ) : (
-                        <span className="flex items-center">
-                          <RefreshCw className="w-4 h-4 mr-1" />
-                          Resend OTP
-                        </span>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => window.location.reload()}
-                      className="text-sm text-[#ba2121] hover:text-[#8a1919]"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-
-                  <div className="mt-6 p-3 bg-[#fff3cd] border border-[#ffeeba] rounded">
-                    <p className="text-xs text-[#856404]">
-                      <AlertCircle className="inline w-3 h-3 mr-1" />
-                      OTP expires in 10 minutes. Check your spam folder if you don't see the email.
-                    </p>
-                  </div>
+                  <div className="mt-6 text-center"></div>
                 </motion.div>
               )}
             </AnimatePresence>

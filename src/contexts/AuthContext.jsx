@@ -114,7 +114,17 @@ export const AuthProvider = ({ children }) => {
             branch: '',
             year: '',
             bio: ''
-          }
+          },
+          // Add missing fields required by Firestore rules
+          bio: '',
+          branch: '',
+          usn: '',
+          github: '',
+          linkedin: '',
+          phone: '',
+          certificates: [],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
         }
         
         await setDoc(userRef, newUserData)
@@ -140,7 +150,8 @@ export const AuthProvider = ({ children }) => {
               ...existingData.membership,
               status: 'active',
               type: 'core'
-            }
+            },
+            updatedAt: serverTimestamp()
           }
           
           await setDoc(userRef, updatedData, { merge: true })
@@ -349,7 +360,8 @@ export const AuthProvider = ({ children }) => {
             await setDoc(userRef, { 
               role: 'coreMember',
               roleDetails,
-              isCoreMember: true 
+              isCoreMember: true,
+              updatedAt: serverTimestamp()
             }, { merge: true })
           }
         }

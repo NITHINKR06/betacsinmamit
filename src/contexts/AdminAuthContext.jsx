@@ -1,7 +1,9 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { auth, googleProvider,isDemoMode, db } from '../config/firebase'
+import { auth, googleProvider, isDemoMode, db } from '../config/firebase'
 import { 
   signInWithPopup as firebaseSignInWithPopup,
+  signInWithRedirect as firebaseSignInWithRedirect,
+  getRedirectResult as firebaseGetRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged as firebaseOnAuthStateChanged
 } from 'firebase/auth'
@@ -15,8 +17,11 @@ import {
 import toast from 'react-hot-toast'
 import emailService from '../services/emailService'
 
+// Determine dev mode: use Vite's flag OR VITE_APP_ENV=development
+const IS_DEV_MODE = (import.meta.env?.DEV === true) || (import.meta.env?.VITE_APP_ENV === 'development')
+
 // Use appropriate functions based on mode
-let signInWithPopup, signOut, onAuthStateChanged
+let signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged
 let doc, setDoc, getDoc, serverTimestamp, collection
 
 if (isDemoMode) {
@@ -24,6 +29,8 @@ if (isDemoMode) {
   signInWithPopup = (auth, provider) => auth.signInWithPopup(provider)
   signOut = (auth) => auth.signOut()
   onAuthStateChanged = (auth, callback) => auth.onAuthStateChanged(callback)
+  signInWithRedirect = (auth, provider) => auth.signInWithRedirect(provider)
+  getRedirectResult = (auth) => auth.getRedirectResult()
   
   // Mock Firestore functions
   doc = (db, collectionName, id) => db.doc(`${collectionName}/${id}`)
@@ -34,6 +41,8 @@ if (isDemoMode) {
 } else {
   // Use real Firebase functions
   signInWithPopup = firebaseSignInWithPopup
+  signInWithRedirect = firebaseSignInWithRedirect
+  getRedirectResult = firebaseGetRedirectResult
   signOut = firebaseSignOut
   onAuthStateChanged = firebaseOnAuthStateChanged
   doc = firebaseDoc
@@ -54,7 +63,7 @@ const ADMIN_WHITELIST = (import.meta.env.VITE_ADMIN_WHITELIST || "")
 
 // OTP configuration
 const OTP_EXPIRY_TIME = 10 * 60 * 1000 // 10 minutes
-const SESSION_TIMEOUT = 60 * 60 * 1000 // 30 minutes
+const SESSION_TIMEOUT = 60 * 60 * 1000 // 60 minutes
 
 export const AdminAuthProvider = ({ children }) => {
   const [adminUser, setAdminUser] = useState(null)
@@ -71,6 +80,8 @@ export const AdminAuthProvider = ({ children }) => {
 
   // Check if user is whitelisted admin
   const isWhitelistedAdmin = (email) => {
+    // If no whitelist provided, allow all (useful in development)
+    if (ADMIN_WHITELIST.length === 0) return true
     return ADMIN_WHITELIST.includes(email.toLowerCase())
   }
 
@@ -78,34 +89,36 @@ export const AdminAuthProvider = ({ children }) => {
   const signInAdminWithGoogle = async () => {
     setAuthLoading(true)
     try {
-      const result = await signInWithPopup(auth, googleProvider)
-      const user = result.user
+      // In development or when Firebase isn't configured, create a local dev admin session
+      if (IS_DEV_MODE || !auth || !googleProvider) {
+        const devAdminUser = {
+          uid: 'dev-admin-uid',
+          email: 'dev-admin@csinmamit.com',
+          name: 'Development Admin',
+          photoURL: null,
+          role: 'admin',
+          verified: true,
+          permissions: { users: true, events: true, members: true, content: true, settings: true }
+        }
+
+        const sessionExp = Date.now() + SESSION_TIMEOUT
+        setSessionExpiry(sessionExp)
+        localStorage.setItem('adminSession', JSON.stringify({ uid: devAdminUser.uid, expiry: sessionExp }))
+        setAdminUser(devAdminUser)
+        toast.success('Admin login (dev mode)')
+        return null
+      }
+
+      // Use redirect flow to avoid COOP/popup warnings
+      await signInWithRedirect(auth, googleProvider)
+      return null
       
       // In demo mode, simulate admin user
       // if (isDemoMode) {
       //   user.email = 'csidatabasenmamit@gmail.com'
       //   user.displayName = 'csi nmamit'
       // }
-      
-      // Check if user is in admin whitelist
-      if (!isWhitelistedAdmin(user.email)) {
-        await signOut(auth)
-        toast.error('Unauthorized: You are not an admin')
-        return null
-      }
-
-      // Store pending admin for OTP verification
-      setPendingAdmin({
-        uid: user.uid,
-        email: user.email,
-        name: user.displayName,
-        photoURL: user.photoURL
-      })
-
-      // Generate and send OTP
-      await sendOTPEmail(user.email, user.displayName)
-      
-      return user
+      // Remaining logic runs after redirect result is processed below
     } catch (error) {
       // console.error('Error signing in:', error)
       toast.error('Failed to sign in. Please try again.')
@@ -114,6 +127,84 @@ export const AdminAuthProvider = ({ children }) => {
       setAuthLoading(false)
     }
   }
+
+  // Handle redirect result after returning from Google auth
+  useEffect(() => {
+    const handleRedirect = async () => {
+      try {
+        // Skip redirect handling entirely in dev/offline mode
+        if (IS_DEV_MODE || !auth) {
+          return
+        }
+        const result = await getRedirectResult(auth)
+        let user = result?.user
+
+        // Fallback: if there's no redirect result but Firebase already has a signed-in user,
+        // continue the flow to avoid getting stuck on /admin/login
+        if (!user && auth?.currentUser) {
+          user = auth.currentUser
+        }
+
+        if (!user) return
+
+        // Check whitelist
+        if (!isWhitelistedAdmin(user.email)) {
+          await signOut(auth)
+          toast.error('Unauthorized: You are not an admin')
+          return
+        }
+
+        // Store pending admin
+        setPendingAdmin({
+          uid: user.uid,
+          email: user.email,
+          name: user.displayName,
+          photoURL: user.photoURL
+        })
+
+        {
+          // Skip OTP and create session immediately
+          const adminRef = doc(db, 'admins', user.uid)
+          await setDoc(adminRef, {
+            uid: user.uid,
+            email: user.email,
+            name: user.displayName,
+            photoURL: user.photoURL,
+            role: 'admin',
+            verified: true,
+            lastLogin: serverTimestamp(),
+            loginHistory: [],
+            permissions: { users: true, events: true, members: true, content: true, settings: true }
+          }, { merge: true })
+
+          const userRef = doc(db, 'users', user.uid)
+          await setDoc(userRef, {
+            uid: user.uid,
+            email: user.email,
+            name: user.displayName,
+            photoURL: user.photoURL,
+            role: 'admin',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          }, { merge: true })
+
+          const sessionExp = Date.now() + SESSION_TIMEOUT
+          setSessionExpiry(sessionExp)
+          localStorage.setItem('adminSession', JSON.stringify({ uid: user.uid, expiry: sessionExp }))
+          setAdminUser({ uid: user.uid, email: user.email, name: user.displayName, photoURL: user.photoURL, role: 'admin', verified: true })
+          setPendingAdmin(null)
+          setOtpSent(false)
+          toast.success('Admin login successful')
+          return
+        }
+
+        // (OTP removed)
+      } catch (e) {
+        // console.error('Redirect handling error', e)
+      }
+    }
+    handleRedirect()
+  }, [])
 
 
   // Send OTP Email (Step 2)
@@ -332,6 +423,22 @@ export const AdminAuthProvider = ({ children }) => {
   // Check for existing session on mount
   useEffect(() => {
     const checkExistingSession = async () => {
+      // In development mode, automatically set admin user without authentication
+      if (IS_DEV_MODE) {
+        const devAdminUser = {
+          uid: 'dev-admin-uid',
+          email: 'dev-admin@csinmamit.com',
+          name: 'Development Admin',
+          photoURL: null,
+          role: 'admin',
+          verified: true,
+          permissions: { users: true, events: true, members: true, content: true, settings: true }
+        }
+        setAdminUser(devAdminUser)
+        setLoading(false)
+        return
+      }
+
       const storedSession = localStorage.getItem('adminSession')
       
       if (storedSession) {

@@ -398,21 +398,12 @@ service cloud.firestore {
     
     // Admin OTPs collection
     // Allow authenticated users to create/update OTP for their own email (during login flow)
-    // Allow admins to read any OTP for management purposes
+    // Keep reads restricted to the same email or admins
     match /adminOTPs/{email} {
-      allow create: if isAuthenticated() && 
-                     isValidEmail(email) &&
-                     request.resource.data.keys().hasOnly(['otp', 'email', 'expiryTime', 'used', 'createdAt', 'attempts']) &&
-                     request.resource.data.email == email &&
-                     request.resource.data.otp is string &&
-                     request.resource.data.expiryTime is number &&
-                     request.resource.data.used == false &&
-                     request.resource.data.attempts == 0;
-      allow update: if isAuthenticated() &&
-                     resource.data.email == email &&
-                     request.resource.data.email == email &&
+      allow create: if isAuthenticated() && request.auth.token.email == email;
+      allow update: if isAuthenticated() && request.auth.token.email == email &&
                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attempts', 'used', 'expiryTime']);
-      allow read: if isAdmin() || (isAuthenticated() && resource.data.email == email);
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.token.email == email);
       allow delete: if isAdmin();
     }
 

@@ -20,10 +20,17 @@ const AdminLogin = () => {
   const { 
     adminUser,
     authLoading,
-    signInAdminWithGoogle
+    signInAdminWithGoogle,
+    pendingAdmin,
+    otpSent,
+    verifyOTP,
+    resendOTP
   } = useAdminAuth()
 
-  // OTP removed
+  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [resendTimer, setResendTimer] = useState(0)
+  const [attempts, setAttempts] = useState(0)
+  const maxAttempts = 3
 
   // Redirect if already logged in
   useEffect(() => {
@@ -32,7 +39,18 @@ const AdminLogin = () => {
     }
   }, [adminUser, navigate])
 
-  // OTP removed
+  useEffect(() => {
+    if (otpSent && resendTimer === 0) {
+      setResendTimer(60)
+    }
+  }, [otpSent])
+
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const t = setTimeout(() => setResendTimer(resendTimer - 1), 1000)
+      return () => clearTimeout(t)
+    }
+  }, [resendTimer])
 
   // Handle Google Sign In
   const handleGoogleSignIn = async () => {
@@ -43,7 +61,60 @@ const AdminLogin = () => {
     }
   }
 
-  // OTP removed
+  const handleOtpChange = (index, value) => {
+    if (value.length <= 1 && /^\d*$/.test(value)) {
+      const next = [...otp]
+      next[index] = value
+      setOtp(next)
+      if (value && index < 5) {
+        const el = document.getElementById(`otp-${index + 1}`)
+        el && el.focus()
+      }
+    }
+  }
+
+  const handleKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      const prev = document.getElementById(`otp-${index - 1}`)
+      prev && prev.focus()
+    }
+  }
+
+  const handlePaste = (e) => {
+    e.preventDefault()
+    const pasted = e.clipboardData.getData('text').slice(0, 6)
+    if (/^\d+$/.test(pasted)) {
+      const next = pasted.split('').concat(Array(6).fill('')).slice(0, 6)
+      setOtp(next)
+    }
+  }
+
+  const handleVerify = async () => {
+    const code = otp.join('')
+    if (code.length !== 6) {
+      toast.error('Please enter complete OTP')
+      return
+    }
+    if (attempts >= maxAttempts) {
+      toast.error('Maximum attempts exceeded. Refresh and try again.')
+      return
+    }
+    setAttempts(attempts + 1)
+    const ok = await verifyOTP(code)
+    if (!ok) {
+      setOtp(['', '', '', '', '', ''])
+      document.getElementById('otp-0')?.focus()
+    }
+  }
+
+  const handleResend = async () => {
+    if (resendTimer > 0) return
+    const ok = await resendOTP()
+    if (ok) {
+      setResendTimer(60)
+      setOtp(['', '', '', '', '', ''])
+    }
+  }
 
   // OTP removed
 
@@ -62,7 +133,7 @@ const AdminLogin = () => {
           {/* Content */}
           <div className="p-6">
             <AnimatePresence mode="wait">
-              {(
+              {(!pendingAdmin ? (
                 // Step 1: Google Sign In
                 <motion.div
                   key="signin"
@@ -101,7 +172,79 @@ const AdminLogin = () => {
 
                   <div className="mt-6 text-center"></div>
                 </motion.div>
-              )}
+              ) : (
+                // Step 2: OTP Verification
+                <motion.div
+                  key="otp"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                >
+                  <h2 className="text-xl font-normal text-[#333] mb-6">Verify OTP</h2>
+
+                  <div className="mb-4 p-3 bg-[#fff3cd] border border-[#ffeeba] rounded">
+                    <Clock className="inline w-4 h-4 mr-2 text-[#856404]" />
+                    We sent a 6-digit code to <span className="font-medium">{pendingAdmin?.email}</span>
+                  </div>
+
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-[#333] mb-2">Enter 6-digit OTP</label>
+                    <div className="flex justify-between space-x-2">
+                      {otp.map((digit, index) => (
+                        <input
+                          key={index}
+                          id={`otp-${index}`}
+                          type="text"
+                          maxLength="1"
+                          value={digit}
+                          onChange={(e) => handleOtpChange(index, e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(index, e)}
+                          onPaste={index === 0 ? handlePaste : undefined}
+                          className="w-12 h-12 text-center text-lg font-semibold border border-[#ddd] rounded focus:border-[#417690] focus:ring-1 focus:ring-[#417690]"
+                          disabled={authLoading}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {attempts > 0 && (
+                    <div className="mb-4 p-3 bg-[#fff3cd] border border-[#ffeeba] rounded text-sm">
+                      <AlertCircle className="inline w-4 h-4 mr-2" />
+                      {maxAttempts - attempts} attempt{maxAttempts - attempts !== 1 ? 's' : ''} remaining
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between mb-6">
+                    <button
+                      onClick={handleResend}
+                      disabled={resendTimer > 0 || authLoading}
+                      className={`text-sm ${resendTimer > 0 ? 'text-gray-400 cursor-not-allowed' : 'text-[#417690] hover:text-[#205067]'} flex items-center space-x-1`}
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      <span>{resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : 'Resend OTP'}</span>
+                    </button>
+                    <span className="text-xs text-[#666]">Valid for 10 minutes</span>
+                  </div>
+
+                  <button
+                    onClick={handleVerify}
+                    disabled={authLoading || otp.join('').length !== 6}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-[#417690] text-white rounded hover:bg-[#205067] disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    {authLoading ? (
+                      <>
+                        <RefreshCw className="w-5 h-5 animate-spin" />
+                        <span>Verifying...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Key className="w-5 h-5" />
+                        <span>Verify & Access</span>
+                      </>
+                    )}
+                  </button>
+                </motion.div>
+              ))}
             </AnimatePresence>
           </div>
         </div>

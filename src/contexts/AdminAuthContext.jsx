@@ -89,27 +89,7 @@ export const AdminAuthProvider = ({ children }) => {
   const signInAdminWithGoogle = async () => {
     setAuthLoading(true)
     try {
-      // In development or when Firebase isn't configured, create a local dev admin session
-      if (IS_DEV_MODE || !auth || !googleProvider) {
-        const devAdminUser = {
-          uid: 'dev-admin-uid',
-          email: 'dev-admin@csinmamit.com',
-          name: 'Development Admin',
-          photoURL: null,
-          role: 'admin',
-          verified: true,
-          permissions: { users: true, events: true, members: true, content: true, settings: true }
-        }
-
-        const sessionExp = Date.now() + SESSION_TIMEOUT
-        setSessionExpiry(sessionExp)
-        localStorage.setItem('adminSession', JSON.stringify({ uid: devAdminUser.uid, expiry: sessionExp }))
-        setAdminUser(devAdminUser)
-        toast.success('Admin login (dev mode)')
-        return null
-      }
-
-      // Use redirect flow to avoid COOP/popup warnings
+      // Always use Google auth; require OTP after redirect
       await signInWithRedirect(auth, googleProvider)
       return null
       
@@ -132,8 +112,8 @@ export const AdminAuthProvider = ({ children }) => {
   useEffect(() => {
     const handleRedirect = async () => {
       try {
-        // Skip redirect handling entirely in dev/offline mode
-        if (IS_DEV_MODE || !auth) {
+        // If Firebase auth not available, abort
+        if (!auth) {
           return
         }
         const result = await getRedirectResult(auth)
@@ -162,43 +142,9 @@ export const AdminAuthProvider = ({ children }) => {
           photoURL: user.photoURL
         })
 
-        {
-          // Skip OTP and create session immediately
-          const adminRef = doc(db, 'admins', user.uid)
-          await setDoc(adminRef, {
-            uid: user.uid,
-            email: user.email,
-            name: user.displayName,
-            photoURL: user.photoURL,
-            role: 'admin',
-            verified: true,
-            lastLogin: serverTimestamp(),
-            loginHistory: [],
-            permissions: { users: true, events: true, members: true, content: true, settings: true }
-          }, { merge: true })
-
-          const userRef = doc(db, 'users', user.uid)
-          await setDoc(userRef, {
-            uid: user.uid,
-            email: user.email,
-            name: user.displayName,
-            photoURL: user.photoURL,
-            role: 'admin',
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          }, { merge: true })
-
-          const sessionExp = Date.now() + SESSION_TIMEOUT
-          setSessionExpiry(sessionExp)
-          localStorage.setItem('adminSession', JSON.stringify({ uid: user.uid, expiry: sessionExp }))
-          setAdminUser({ uid: user.uid, email: user.email, name: user.displayName, photoURL: user.photoURL, role: 'admin', verified: true })
-          setPendingAdmin(null)
-          setOtpSent(false)
-          toast.success('Admin login successful')
-          return
-        }
-
-        // (OTP removed)
+        // Send OTP and wait for verification step
+        await sendOTPEmail(user.email, user.displayName || 'Admin')
+        toast('OTP sent. Please verify to continue.')
       } catch (e) {
         // console.error('Redirect handling error', e)
       }
@@ -423,21 +369,7 @@ export const AdminAuthProvider = ({ children }) => {
   // Check for existing session on mount
   useEffect(() => {
     const checkExistingSession = async () => {
-      // In development mode, automatically set admin user without authentication
-      if (IS_DEV_MODE) {
-        const devAdminUser = {
-          uid: 'dev-admin-uid',
-          email: 'dev-admin@csinmamit.com',
-          name: 'Development Admin',
-          photoURL: null,
-          role: 'admin',
-          verified: true,
-          permissions: { users: true, events: true, members: true, content: true, settings: true }
-        }
-        setAdminUser(devAdminUser)
-        setLoading(false)
-        return
-      }
+      // Always require a valid session; no dev auto-login
 
       const storedSession = localStorage.getItem('adminSession')
       

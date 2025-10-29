@@ -131,7 +131,7 @@ export const useProfileFirestore = () => {
       email: user.email,
       name: user.name,
       isAuthenticated: !!user.uid
-    })
+    })  
 
     const isValid = validateProfileData(profileData);
     if (!isValid) {
@@ -145,7 +145,10 @@ export const useProfileFirestore = () => {
       const existingDoc = await getDoc(userRef);
       const existingData = existingDoc.exists() ? existingDoc.data() : {};
       
+      const validRoles = ['member', 'coreMember', 'admin', 'User', 'EXECUTIVE MEMBER', 'core'];
+
       // Prepare the update data according to Firestore rules
+// Prepare the update data according to Firestore rules
       const updateData = {
         // Core fields that match Firestore rules
         name: profileData.name || '',
@@ -161,7 +164,10 @@ export const useProfileFirestore = () => {
         
         // Preserve existing fields
         email: existingData.email || user.email || profileData.email,
-        role: existingData.role || 'member',
+        
+        // --- THIS IS THE CORRECTED LINE ---
+        role: validRoles.includes(existingData.role) ? existingData.role : 'member',
+        
         certificates: existingData.certificates || [],
         
         // Also update the nested profile object for backward compatibility

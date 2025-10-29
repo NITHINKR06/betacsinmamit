@@ -91,6 +91,33 @@ export const useProfileFirestore = () => {
     }))
   }
 
+  const validateProfileData = (data) => {
+    // Check USN: if it's not empty, it must be at least 3 chars
+    if (data.usn && data.usn.length < 3) {
+      toast.error('USN must be at least 3 characters long.');
+      return false;
+    }
+    // Check Phone: if it's not empty, it must be at least 8 chars
+    if (data.phone && data.phone.length < 8) {
+      toast.error('Phone number must be at least 8 characters long.');
+      return false;
+    }
+    // Add other checks here (e.g., for name)
+    
+    return true; // All checks passed
+  };
+
+  const getYearAsNumber = (yearString) => {
+    if (!yearString) return 0; // Or null, depending on your preference
+    const lowerYear = yearString.toLowerCase();
+    if (lowerYear.includes('first')) return 1;
+    if (lowerYear.includes('second')) return 2;
+    if (lowerYear.includes('third')) return 3;
+    if (lowerYear.includes('fourth')) return 4;
+    if (lowerYear.includes('fifth')) return 5;
+    return 0; // Default case
+  };
+
   // Save profile to Firestore
   const handleSave = async () => {
     if (!user?.uid) {
@@ -106,13 +133,17 @@ export const useProfileFirestore = () => {
       isAuthenticated: !!user.uid
     })
 
-    setLoading(true)
+    const isValid = validateProfileData(profileData);
+    if (!isValid) {
+      return; // Stop execution if validation fails
+    }
+
+    setLoading(true);
     try {
-      const userRef = doc(db, 'users', user.uid)
+      const userRef = doc(db, 'users', user.uid);
       
-      // Get existing document to preserve fields we don't update
-      const existingDoc = await getDoc(userRef)
-      const existingData = existingDoc.exists() ? existingDoc.data() : {}
+      const existingDoc = await getDoc(userRef);
+      const existingData = existingDoc.exists() ? existingDoc.data() : {};
       
       // Prepare the update data according to Firestore rules
       const updateData = {
@@ -124,6 +155,9 @@ export const useProfileFirestore = () => {
         github: profileData.github || '',
         linkedin: profileData.linkedin || '',
         phone: profileData.phone || '',
+
+        // --- ADD THIS LINE ---
+        year: getYearAsNumber(profileData.year), // This satisfies the 'number' rule
         
         // Preserve existing fields
         email: existingData.email || user.email || profileData.email,
@@ -135,13 +169,13 @@ export const useProfileFirestore = () => {
           phone: profileData.phone || '',
           college: profileData.college || 'NMAMIT',
           branch: profileData.branch || '',
-          year: profileData.year || '',
+          year: profileData.year || '', // This satisfies the 'string' rule
           bio: profileData.bio || ''
         },
         
         // Timestamps
         updatedAt: serverTimestamp()
-      }
+      };
       
       // Add createdAt only if it's a new document
       if (!existingDoc.exists()) {

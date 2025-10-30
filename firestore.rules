@@ -247,7 +247,7 @@ service cloud.firestore {
           'date','time','venue','category','type','entryFee','organizers',
           'contactPersons','year','published','registrationsAvailable',
           'participants','participantCount','searchTitle','searchDescription',
-          'status','featured','createdAt','updatedAt'
+          'status','featured','createdAt','updatedAt','allowViewOtherTeams','teamSizeOptions'
         ]) &&
           isValidStringLength(data.title, 1, 200) &&
           isValidStringLength(data.description, 1, 5000) &&
@@ -264,6 +264,13 @@ service cloud.firestore {
           (data.participants == null || data.participants is list) &&
           (data.participantCount == null || data.participantCount is number) &&
           (data.featured == null || data.featured is bool) &&
+          // optional flags
+          (data.allowViewOtherTeams == null || data.allowViewOtherTeams is bool) &&
+          (data.teamSizeOptions == null || (
+            data.teamSizeOptions is list &&
+            data.teamSizeOptions.size() >= 1 &&
+            data.teamSizeOptions.size() <= 10
+          )) &&
           (data.status == null || data.status in ['active','completed','cancelled','postponed']) &&
           (data.organizers == null || isValidStringLength(data.organizers, 0, 200)) &&
           (data.contactPersons == null || data.contactPersons is list) &&
@@ -278,7 +285,7 @@ service cloud.firestore {
           'date','time','venue','category','type','entryFee','organizers',
           'contactPersons','year','published','registrationsAvailable',
           'participants','participantCount','searchTitle','searchDescription',
-          'status','featured','updatedAt'
+          'status','featured','updatedAt','allowViewOtherTeams','teamSizeOptions'
         ]) &&
           newData.createdAt == oldData.createdAt;
       }

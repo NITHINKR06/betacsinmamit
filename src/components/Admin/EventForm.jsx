@@ -47,6 +47,7 @@ const EventForm = ({ event, onSubmit, onCancel, loading }) => {
   const [imageUploaded, setImageUploaded] = useState(false)
   const [errors, setErrors] = useState({})
   const [contactPerson, setContactPerson] = useState({ name: '', phone: '', email: '' })
+  const [teamSizeOptions, setTeamSizeOptions] = useState([2,3,4])
 
   // Event categories
   const categories = ['UPCOMING', 'PREVIOUS', 'ONGOING']
@@ -60,6 +61,7 @@ const EventForm = ({ event, onSubmit, onCancel, loading }) => {
         year: event.year || new Date().getFullYear(),
         contactPersons: event.contactPersons || []
       })
+      setTeamSizeOptions(Array.isArray(event.teamSizeOptions) && event.teamSizeOptions.length ? event.teamSizeOptions : [2,3,4])
       if (event.image) {
         setImagePreview(event.image)
         setCloudinaryUrl(event.image)
@@ -186,7 +188,9 @@ const EventForm = ({ event, onSubmit, onCancel, loading }) => {
         ...formData,
         cloudinaryUrl: cloudinaryUrl,
         entryFee: Number(formData.entryFee) || 0,
-        year: Number(formData.year) || new Date().getFullYear()
+        year: Number(formData.year) || new Date().getFullYear(),
+        // include team size options for TEAM events
+        teamSizeOptions: formData.type === 'TEAM' ? teamSizeOptions : null
       }
       // console.log(submitData)
       onSubmit(submitData, null) // No need to pass imageFile since it's already uploaded
@@ -469,38 +473,32 @@ const EventForm = ({ event, onSubmit, onCancel, loading }) => {
             </div>
             </div>
 
-            {/* Organizers and Entry Fee */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="django-form-label mb-2">
-                <Users className="inline w-4 h-4 mr-1" />
-                Organizers
-              </label>
-              <input
-                type="text"
-                name="organizers"
-                value={formData.organizers}
-                onChange={handleInputChange}
-                className="django-form-input"
-                placeholder="Event organizers"
-              />
-            </div>
-
-            <div>
-              <label className="django-form-label mb-2">
-                <DollarSign className="inline w-4 h-4 mr-1" />
-                Entry Fee (₹)
-              </label>
-              <input
-                type="number"
-                name="entryFee"
-                value={formData.entryFee}
-                onChange={handleInputChange}
-                min="0"
-                className="django-form-input"
-              />
-            </div>
-            </div>
+            {/* Team Size Options (for TEAM events) */}
+            {formData.type === 'TEAM' && (
+              <div>
+                <label className="django-form-label mb-2">Allowed Team Sizes</label>
+                <div className="flex flex-wrap gap-2">
+                  {[2,3,4,5,6].map(sz => {
+                    const active = teamSizeOptions.includes(sz)
+                    return (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => {
+                          setTeamSizeOptions(prev => (
+                            prev.includes(sz) ? prev.filter(n => n !== sz) : [...prev, sz]
+                          ))
+                        }}
+                        className={`px-3 py-1 rounded border ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'}`}
+                      >
+                        {sz}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="mt-1 text-xs text-gray-500">Select one or more sizes users can pick when creating a team.</p>
+              </div>
+            )}
 
             {/* Contact Persons */}
             <div>

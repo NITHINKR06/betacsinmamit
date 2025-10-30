@@ -14,10 +14,15 @@ import {
   StarOff,
   ExternalLink,
   Image as ImageIcon,
-  AlertCircle
+  AlertCircle,
+  Users,
+  X
 } from 'lucide-react'
+import { useEffect } from 'react'
+import { collection, getDocs, query, where, getDoc, doc } from 'firebase/firestore'
+import { db } from '../../config/firebase'
 
-const EventList = ({ events, onEdit, onDelete, onTogglePublished, onToggleFeatured, loading }) => {
+const EventList = ({ events, onEdit, onDelete, onTogglePublished, onToggleFeatured, onToggleAllowViewTeams, loading }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterYear, setFilterYear] = useState('all')
   const [filterCategory, setFilterCategory] = useState('all')
@@ -26,6 +31,9 @@ const EventList = ({ events, onEdit, onDelete, onTogglePublished, onToggleFeatur
   const [sortOrder, setSortOrder] = useState('desc')
   const [expandedRows, setExpandedRows] = useState([])
   const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [teamsModalEvent, setTeamsModalEvent] = useState(null)
+  const [teamsLoading, setTeamsLoading] = useState(false)
+  const [teams, setTeams] = useState([])
 
   // Get unique years from events
   const years = [...new Set(events.map(e => e.year))].sort((a, b) => b - a)
@@ -70,6 +78,93 @@ const EventList = ({ events, onEdit, onDelete, onTogglePublished, onToggleFeatur
       return aVal < bVal ? 1 : -1
     }
   })
+
+  const openTeamsModal = async (event) => {
+    setTeamsModalEvent(event)
+    setTeamsLoading(true)
+    try {
+      const registrationsRef = collection(db, 'eventRegistrations')
+      const qTeams = query(
+        registrationsRef,
+        where('eventId', '==', event.id),
+        where('registrationType', '==', 'team')
+      )
+      const snapshot = await getDocs(qTeams)
+      const baseList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+      // hydrate leader details (email/phone/usn)
+      const list = await Promise.all(baseList.map(async (t) => {
+        let leaderEmail = t.userEmail || null
+        let leaderName = t.userName || null
+        let leaderPhone = null
+        let leaderUSN = null
+
+        try {
+          if (t.teamLeader) {
+            const leaderRef = doc(db, 'users', t.teamLeader)
+            const leaderSnap = await getDoc(leaderRef)
+            if (leaderSnap.exists()) {
+              const u = leaderSnap.data()
+              leaderEmail = u.email || leaderEmail
+              leaderName = u.name || leaderName
+              leaderPhone = u.phone || u?.profile?.phone || null
+              leaderUSN = u.usn || u?.profile?.usn || null
+            }
+          }
+        } catch (_) {}
+
+        // fallback: try to find leader in members array
+        if (!leaderEmail || !leaderName) {
+          const leaderMember = Array.isArray(t.members) ? t.members.find(m => m.role === 'leader') : null
+          if (leaderMember) {
+            leaderEmail = leaderEmail || leaderMember.email || null
+            leaderName = leaderName || leaderMember.name || null
+          }
+        }
+
+        return { ...t, leaderEmail, leaderName, leaderPhone, leaderUSN }
+      }))
+      setTeams(list)
+    } catch (e) {
+      setTeams([])
+    } finally {
+      setTeamsLoading(false)
+    }
+  }
+
+  const exportTeamsCSV = () => {
+    const headers = [
+      'Team Name','Team Code','Team Size','Members Count','Leader Name','Leader Email','Leader Phone','Leader USN'
+    ]
+    const rows = teams.map(t => [
+      t.teamName || '',
+      t.teamCode || '',
+      t.teamSize || '',
+      Array.isArray(t.members) ? t.members.length : 0,
+      t.leaderName || '',
+      t.leaderEmail || '',
+      t.leaderPhone || '',
+      t.leaderUSN || ''
+    ])
+    const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `teams_${teamsModalEvent?.title || 'event'}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const copyToClipboard = (text) => {
+    if (!text) return
+    navigator.clipboard?.writeText(String(text))
+  }
+
+  const closeTeamsModal = () => {
+    setTeamsModalEvent(null)
+    setTeams([])
+    setTeamsLoading(false)
+  }
 
   const toggleRowExpansion = (eventId) => {
     setExpandedRows(prev => 
@@ -307,6 +402,13 @@ const EventList = ({ events, onEdit, onDelete, onTogglePublished, onToggleFeatur
                             >
                               {event.featured ? <Star size={18} /> : <StarOff size={18} />}
                             </button>
+                            <button
+                              onClick={() => onToggleAllowViewTeams && onToggleAllowViewTeams(event.id, !event.allowViewOtherTeams)}
+                              className={`p-1 rounded ${event.allowViewOtherTeams ? 'text-blue-600 hover:bg-blue-100' : 'text-gray-400 hover:bg-gray-100'}`}
+                              title={event.allowViewOtherTeams ? 'Teams visible to users' : 'Teams hidden from users'}
+                            >
+                              <Users size={18} />
+                            </button>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right text-sm font-medium">
@@ -343,6 +445,13 @@ const EventList = ({ events, onEdit, onDelete, onTogglePublished, onToggleFeatur
                                 <ExternalLink size={18} />
                               </a>
                             )}
+                            <button
+                              onClick={() => openTeamsModal(event)}
+                              className="text-gray-600 hover:text-gray-900"
+                              title="View Registered Teams"
+                            >
+                              <Users size={18} />
+                            </button>
                           </div>
                         </td>
                       </motion.tr>
@@ -419,6 +528,80 @@ const EventList = ({ events, onEdit, onDelete, onTogglePublished, onToggleFeatur
           </div>
         )}
       </div>
+      {teamsModalEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-6xl">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Registered Teams — {teamsModalEvent.title}</h3>
+              <div className="flex items-center gap-2">
+                <button onClick={exportTeamsCSV} className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Export CSV</button>
+                <button onClick={closeTeamsModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="p-4 max-h-[70vh] overflow-y-auto">
+              {teamsLoading ? (
+                <div className="text-center text-gray-600 dark:text-gray-400">Loading...</div>
+              ) : teams.length === 0 ? (
+                <div className="text-center text-gray-600 dark:text-gray-400">No teams registered yet.</div>
+              ) : (
+                <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
+                        <tr className="text-left text-gray-600 dark:text-gray-200">
+                          <th className="px-3 py-2 font-medium">Team</th>
+                          <th className="px-3 py-2 font-medium">Code</th>
+                          <th className="px-3 py-2 font-medium">Members</th>
+                          <th className="px-3 py-2 font-medium">Leader</th>
+                          <th className="px-3 py-2 font-medium">Email</th>
+                          <th className="px-3 py-2 font-medium">Contact</th>
+                          <th className="px-3 py-2 font-medium">USN</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                        {teams.map((t, idx) => (
+                          <tr key={t.id} className={idx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-900/30'}>
+                            <td className="px-3 py-2">
+                              <div className="font-medium text-gray-900 dark:text-gray-100">{t.teamName || '-'}</div>
+                              <div className="text-xs text-gray-500">Size: {t.teamSize || '-'}</div>
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="inline-flex items-center gap-2">
+                                <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 font-mono text-xs">{t.teamCode || '-'}</span>
+                                {t.teamCode && (
+                                  <button onClick={() => copyToClipboard(t.teamCode)} className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">Copy</button>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
+                                {(Array.isArray(t.members) ? t.members.length : 0)}/{t.teamSize || '-'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2">{t.leaderName || t.userName || '-'}</td>
+                            <td className="px-3 py-2">
+                              <div className="inline-flex items-center gap-2">
+                                <span>{t.leaderEmail || '-'}</span>
+                                {t.leaderEmail && (
+                                  <button onClick={() => copyToClipboard(t.leaderEmail)} className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">Copy</button>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2">{t.leaderPhone || '-'}</td>
+                            <td className="px-3 py-2 font-mono text-xs">{t.leaderUSN || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -20,7 +20,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { formatEventDate } from '../../utils/eventUtils'
 import { EVENT_TYPE_COLORS } from '../../constants/eventConstants'
 import toast from 'react-hot-toast'
-import {
+import { 
   doc,
   collection,
   addDoc,
@@ -47,6 +47,9 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
   const [teamSize, setTeamSize] = useState(2)
   const [loading, setLoading] = useState(false)
   const [userTeam, setUserTeam] = useState(null)
+  const [showOtherTeams, setShowOtherTeams] = useState(false)
+  const [otherTeams, setOtherTeams] = useState([])
+  const [otherTeamsLoading, setOtherTeamsLoading] = useState(false)
 
   useEffect(() => {
     if (event && user && isOpen) {
@@ -77,6 +80,26 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
       }
     } catch (error) {
       console.error('Error checking user team:', error)
+    }
+  }
+
+  const fetchOtherTeams = async () => {
+    if (!event) return
+    setOtherTeamsLoading(true)
+    try {
+      const registrationsRef = collection(db, 'eventRegistrations')
+      const qTeams = query(
+        registrationsRef,
+        where('eventId', '==', event.id),
+        where('registrationType', '==', 'team')
+      )
+      const snapshot = await getDocs(qTeams)
+      const list = snapshot.docs.map(d => d.data())
+      setOtherTeams(list)
+    } catch (e) {
+      setOtherTeams([])
+    } finally {
+      setOtherTeamsLoading(false)
     }
   }
 
@@ -291,7 +314,7 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
 
       // Check team size
       if (teamData.members && teamData.members.length >= teamData.teamSize) {
-        toast.error('Team is full')
+        toast.error('This team is full')
         setLoading(false)
         return
       }
@@ -376,6 +399,7 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
   const isRegistered = userTeam !== null
 
   return (
+    <>
     <AnimatePresence>
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-40 p-4 overflow-y-auto pt-24 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <motion.div
@@ -563,6 +587,21 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
                       </div>
                     )}
 
+                    {event.allowViewOtherTeams && (
+                      <div>
+                        <button
+                          onClick={() => {
+                            setShowOtherTeams(true)
+                            fetchOtherTeams()
+                          }}
+                          className="w-full btn-secondary flex items-center justify-center gap-2"
+                        >
+                          <TeamIcon className="w-4 h-4" />
+                          View other teams
+                        </button>
+                      </div>
+                    )}
+
                     {showTeamForm && (
                       <div className="bg-primary-50 dark:bg-gray-700/30 rounded-xl p-4 space-y-4">
                         <h3 className="font-semibold">Create Your Team</h3>
@@ -583,9 +622,13 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
                             onChange={(e) => setTeamSize(parseInt(e.target.value))}
                             className="input-field"
                           >
-                            <option value={2}>2 members</option>
-                            <option value={3}>3 members</option>
-                            <option value={4}>4 members</option>
+                            {Array.isArray(event.teamSizeOptions) && event.teamSizeOptions.length
+                              ? event.teamSizeOptions.sort((a,b)=>a-b).map(sz => (
+                                  <option key={sz} value={sz}>{sz} {sz === 1 ? 'member' : 'members'}</option>
+                                ))
+                              : [2,3,4].map(sz => (
+                                  <option key={sz} value={sz}>{sz} members</option>
+                                ))}
                           </select>
                         </div>
                         <div className="flex gap-3">
@@ -687,6 +730,45 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
         </motion.div>
       </div>
     </AnimatePresence>
+    {showOtherTeams && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-4xl">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Other Teams — {event.title}</h3>
+            <button onClick={() => setShowOtherTeams(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+              <X size={18} />
+            </button>
+          </div>
+          <div className="p-4 max-h-[60vh] overflow-y-auto">
+            {otherTeamsLoading ? (
+              <div className="text-center text-gray-600 dark:text-gray-400">Loading...</div>
+            ) : otherTeams.length === 0 ? (
+              <div className="text-center text-gray-600 dark:text-gray-400">No teams to show.</div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500">
+                    <th className="py-2">Team Name</th>
+                    <th className="py-2">Code</th>
+                    <th className="py-2">Members</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {otherTeams.map((t, idx) => (
+                    <tr key={idx} className="border-t border-gray-100 dark:border-gray-700">
+                      <td className="py-2">{t.teamName || '-'}</td>
+                      <td className="py-2 font-mono">{t.teamCode || '-'}</td>
+                      <td className="py-2">{Array.isArray(t.members) ? t.members.length : 0}/{t.teamSize || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 

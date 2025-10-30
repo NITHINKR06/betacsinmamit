@@ -138,6 +138,16 @@ export default function AdminEvents() {
     }
   }
 
+  const handleToggleAllowViewTeams = async (eventId, allow) => {
+    try {
+      await updateEvent(eventId, { allowViewOtherTeams: allow })
+      toast.success(`Teams visibility ${allow ? 'enabled' : 'disabled'}!`)
+      loadEvents()
+    } catch (error) {
+      toast.error('Failed to update teams visibility')
+    }
+  }
+
   const handleExportEvents = () => {
     const dataStr = JSON.stringify(events, null, 2)
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr)
@@ -282,6 +292,7 @@ export default function AdminEvents() {
           onDelete={requestDeleteEvent}
           onTogglePublished={handleTogglePublished}
           onToggleFeatured={handleToggleFeatured}
+          onToggleAllowViewTeams={handleToggleAllowViewTeams}
           loading={loading}
         />
       </div>

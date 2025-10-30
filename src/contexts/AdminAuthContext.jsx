@@ -62,15 +62,15 @@ const ADMIN_WHITELIST = (import.meta.env.VITE_ADMIN_WHITELIST || "")
   .map(email => email.trim().toLowerCase())
   .filter(Boolean); // removes empty strings
 
-// OTP configuration
-const OTP_EXPIRY_TIME = 10 * 60 * 1000 // 10 minutes
+// Admin Token configuration
+const TOKEN_EXPIRY_TIME = 10 * 60 * 1000 // 10 minutes
 const SESSION_TIMEOUT = 60 * 60 * 1000 // 60 minutes
 
 export const AdminAuthProvider = ({ children }) => {
   const [adminUser, setAdminUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [authLoading, setAuthLoading] = useState(false)
-  const [otpSent, setOtpSent] = useState(false)
+  const [tokenSent, setTokenSent] = useState(false)
   const [sessionExpiry, setSessionExpiry] = useState(null)
   const [pendingAdmin, setPendingAdmin] = useState(() => {
     // Restore pendingAdmin from sessionStorage on mount
@@ -78,8 +78,8 @@ export const AdminAuthProvider = ({ children }) => {
     return stored ? JSON.parse(stored) : null
   })
 
-  // Generate OTP
-  // const generateOTP = () => {
+  // Generate Admin Token
+  // const generateToken = () => {
   //   return Math.floor(100000 + Math.random() * 900000).toString()
   // }
 
@@ -111,7 +111,7 @@ export const AdminAuthProvider = ({ children }) => {
           const user = result?.user;
           
           if (user) {
-            console.log('Popup sign-in successful for:', user.email);
+            // Popup sign-in successful
             
             // Whitelist check
             if (!isWhitelistedAdmin(user.email)) {
@@ -121,7 +121,7 @@ export const AdminAuthProvider = ({ children }) => {
               return null;
             }
             
-            // Prepare OTP step with persistence
+            // Prepare token step with persistence
             const adminData = {
               uid: user.uid,
               email: user.email,
@@ -130,14 +130,14 @@ export const AdminAuthProvider = ({ children }) => {
             };
             
             setPendingAdminWithPersistence(adminData);
-            await sendOTPEmail(user.email, user.displayName || 'Admin');
-            sessionStorage.setItem('otpSentForPending', 'true');
-            setOtpSent(true);
+            await sendAdminToken(user.email, user.displayName || 'Admin');
+            sessionStorage.setItem('tokenSentForPending', 'true');
+            setTokenSent(true);
             setAuthLoading(false);
             return null;
           }
         } catch (popupError) {
-          console.log('Popup blocked or failed, falling back to redirect:', popupError.message);
+          // Popup blocked or failed, falling back to redirect
           
           // Mark that we're initiating a redirect
           sessionStorage.setItem('authRedirectInitiated', 'true');
@@ -148,7 +148,7 @@ export const AdminAuthProvider = ({ children }) => {
         }
       }
     } catch (error) {
-      console.error('Sign-in error:', error);
+      // Sign-in error occurred
       toast.error('Failed to sign in. Please try again.');
       setAuthLoading(false);
       throw error;
@@ -178,15 +178,15 @@ export const AdminAuthProvider = ({ children }) => {
           // Restore the state
           setPendingAdmin(pendingData);
           
-          // Check if OTP was already sent
-          const otpSentFlag = sessionStorage.getItem('otpSentForPending');
-          if (!otpSentFlag) {
-            // OTP not sent yet, send it now
-            await sendOTPEmail(pendingData.email, pendingData.name);
-            sessionStorage.setItem('otpSentForPending', 'true');
-            setOtpSent(true);
+          // Check if token was already sent
+          const tokenSentFlag = sessionStorage.getItem('tokenSentForPending');
+          if (!tokenSentFlag) {
+            // Token not sent yet, send it now
+            await sendAdminToken(pendingData.email, pendingData.name);
+            sessionStorage.setItem('tokenSentForPending', 'true');
+            setTokenSent(true);
           } else {
-            setOtpSent(true);
+            setTokenSent(true);
           }
           return;
         }
@@ -201,14 +201,13 @@ export const AdminAuthProvider = ({ children }) => {
         }
 
         // We have a user from redirect, process it
-        console.log('Processing redirect result for user:', user.email);
 
         // Check whitelist
         const isAdmin = isWhitelistedAdmin(user.email);
         if (!isAdmin) {
           await signOut(auth);
           sessionStorage.removeItem('pendingAdmin');
-          sessionStorage.removeItem('otpSentForPending');
+          sessionStorage.removeItem('tokenSentForPending');
           toast.error('Unauthorized: You are not an admin');
           return;
         }
@@ -223,10 +222,10 @@ export const AdminAuthProvider = ({ children }) => {
         
         setPendingAdminWithPersistence(adminData);
 
-        // Send OTP via EmailJS
-        await sendOTPEmail(user.email, user.displayName || 'Admin');
-        sessionStorage.setItem('otpSentForPending', 'true');
-        setOtpSent(true);
+        // Send token via EmailJS
+        await sendAdminToken(user.email, user.displayName || 'Admin');
+        sessionStorage.setItem('tokenSentForPending', 'true');
+        setTokenSent(true);
 
         // Clear URL parameters to prevent re-processing
         if (isReturningFromAuth) {
@@ -234,14 +233,14 @@ export const AdminAuthProvider = ({ children }) => {
         }
 
       } catch (e) {
-        console.error("Error in handleRedirect:", e);
+        // Error in handleRedirect
         
         // Check if we have a stored pending admin even if redirect failed
         const storedPending = sessionStorage.getItem('pendingAdmin');
         if (storedPending) {
           const pendingData = JSON.parse(storedPending);
           setPendingAdmin(pendingData);
-          setOtpSent(true);
+          setTokenSent(true);
         } else {
           toast.error('Error handling sign-in redirect');
         }
@@ -252,190 +251,80 @@ export const AdminAuthProvider = ({ children }) => {
   }, []); // Keep dependency array empty
 
 
-  // Send OTP Email (Step 2) - Uses EmailJS only
-  const sendOTPEmail = async (email, name) => {
+  // Replace sendAdminToken to use sendOTPEmail from emailService
+  const sendAdminToken = async (email, name) => {
     try {
       const result = await emailService.sendOTPEmail(email, name)
-      
       if (result.success) {
-        toast.success(`OTP sent to ${email}. Check your inbox and spam folder.`)
-        setOtpSent(true)
-        
-        // Auto-expire OTP UI state
+        toast.success(`Token sent to ${email}. Check your inbox and spam folder.`)
+        setTokenSent(true)
         setTimeout(() => {
-          setOtpSent(false)
-        }, OTP_EXPIRY_TIME)
+          setTokenSent(false)
+        }, TOKEN_EXPIRY_TIME)
       } else {
-        throw new Error('Failed to send OTP')
+        throw new Error('Failed to send token')
       }
     } catch (error) {
-      toast.error(error.message || 'Failed to send OTP. Please try again.')
-      setOtpSent(false)
+      toast.error(error.message || 'Failed to send token. Please try again.')
+      setTokenSent(false)
     }
   }
-  // Verify OTP (Step 3) with fallback support
-  const verifyOTP = async (inputOTP) => {
+
+  // Replace verifyAdminToken to use verifyOTP from emailService
+  const verifyAdminToken = async (inputToken) => {
     if (!pendingAdmin) {
       toast.error('No pending admin login')
       return false
     }
-
     setAuthLoading(true)
     try {
-      // Use the frontend email service to verify OTP
-      const result = await emailService.verifyOTP(pendingAdmin.email, inputOTP)
-      
+      const result = await emailService.verifyOTP(pendingAdmin.email, inputToken)
       if (!result.success) {
-        toast.error(result.message || 'Invalid OTP')
+        toast.error(result.message || 'Invalid token')
         return false
       }
-
-      // Create/update admin user in Firestore with fallback support
-      const saveAdminData = async () => {
-        // Prepare base data with safe timestamps for potential fallback
-        const baseAdminData = {
+      // Mark admin as logged in (just in state)
+      const expiry = Date.now() + 15*60*1000; // 15 minutes
+      setAdminUser({ ...pendingAdmin, role: 'admin', verified: true })
+      setSessionExpiry(expiry);
+      // Save session to localStorage
+      localStorage.setItem('adminSession', JSON.stringify({ uid: pendingAdmin.uid, expiry }));
+      setPendingAdminWithPersistence(null)
+      // ---- Firestore: Save admin user record ----
+      try {
+        const adminData = {
           uid: pendingAdmin.uid,
           email: pendingAdmin.email,
           name: pendingAdmin.name,
           photoURL: pendingAdmin.photoURL,
           role: 'admin',
           verified: true,
-          lastLogin: new Date().toISOString(),
-          loginHistory: [],
-          permissions: {
-            users: true,
-            events: true,
-            members: true,
-            content: true,
-            settings: true
-          }
-        };
-
-        const baseUserData = {
-          uid: pendingAdmin.uid,
-          email: pendingAdmin.email,
-          name: pendingAdmin.name,
-          photoURL: pendingAdmin.photoURL,
-          role: 'admin',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-
-        // Try to save to Firestore with fallback
-        const saveSuccess = await firestoreFallback.retryWithFallback(
-          // Primary operation: Save to Firestore
-          async () => {
-            // For Firestore, use serverTimestamp if available
-            const adminData = {
-              ...baseAdminData,
-              lastLogin: isDemoMode ? new Date().toISOString() : serverTimestamp()
-            };
-            
-            const userData = {
-              ...baseUserData,
-              createdAt: isDemoMode ? new Date().toISOString() : serverTimestamp(),
-              updatedAt: isDemoMode ? new Date().toISOString() : serverTimestamp()
-            };
-            
-            const adminRef = doc(db, 'admins', pendingAdmin.uid)
-            await setDoc(adminRef, adminData, { merge: true })
-            
-            const userRef = doc(db, 'users', pendingAdmin.uid)
-            await setDoc(userRef, userData, { merge: true })
-            
-            console.log('✅ Admin data saved to Firestore')
-            return true
-          },
-          // Fallback operation: Save to localStorage
-          async () => {
-            // Store admin data in localStorage as fallback (already has safe timestamps)
-            firestoreFallback.setFallbackData('admins', pendingAdmin.uid, baseAdminData);
-            firestoreFallback.setFallbackData('users', pendingAdmin.uid, baseUserData);
-            
-            console.log('✅ Admin data saved to localStorage fallback')
-            
-            // Show warning to user
-            toast.warning('Using offline mode due to network issues. Some features may be limited.', {
-              duration: 5000,
-              icon: '⚠️'
-            });
-            
-            return true
-          }
-        );
-
-        return saveSuccess;
-      };
-
-      // Save admin data
-      const saved = await saveAdminData();
-      
-      if (!saved) {
-        throw new Error('Failed to save admin data');
-      }
-
-      // Set admin session
-      const sessionExp = Date.now() + SESSION_TIMEOUT
-      setSessionExpiry(sessionExp)
-      
-      // Store session in localStorage
-      localStorage.setItem('adminSession', JSON.stringify({
-        uid: pendingAdmin.uid,
-        expiry: sessionExp
-      }))
-
-      setAdminUser({
-        ...pendingAdmin,
-        role: 'admin',
-        verified: true
-      })
-
-      // Clear pending admin state and sessionStorage
-      setPendingAdminWithPersistence(null)
-      sessionStorage.removeItem('otpSentForPending')
-      setOtpSent(false)
-      
-      // Check if we should show blocking detection
-      if (firestoreFallback.isFirestoreBlocked()) {
-        const blockingInfo = await firestoreFallback.detectBlockingExtensions();
-        if (blockingInfo.hasBlocker) {
-          toast.error(
-            'Ad blocker detected! Please disable it for full functionality.',
-            { duration: 8000, icon: '🚫' }
-          );
+          lastLogin: new Date().toISOString()
         }
+        const adminRef = doc(db, 'admins', pendingAdmin.uid);
+        await setDoc(adminRef, adminData, { merge: true });
+      } catch (e) {
+        // Failed to save admin to Firestore
       }
-      
       toast.success('Admin login successful!')
       return true
     } catch (error) {
-      console.error('Error verifying OTP:', error)
-      
-      // Check if this is a blocking error
-      if (firestoreFallback.isBlockingError(error)) {
-        toast.error('Network blocked. Please disable ad blockers and try again.', {
-          duration: 6000,
-          icon: '🚫'
-        })
-      } else {
-        toast.error('Failed to verify OTP. Please try again.')
-      }
-      
+      toast.error('Failed to verify token. Please try again.')
       return false
     } finally {
       setAuthLoading(false)
     }
   }
 
-  // Resend OTP
-  const resendOTP = async () => {
+  // Resend Admin Token
+  const resendAdminToken = async () => {
     if (!pendingAdmin) {
       toast.error('No pending admin login')
       return false
     }
 
-    // Use the sendOTPEmail function to resend
-    return await sendOTPEmail(pendingAdmin.email, pendingAdmin.name)
+    // Use the sendAdminToken function to resend
+    return await sendAdminToken(pendingAdmin.email, pendingAdmin.name)
   }
 
   // Admin logout
@@ -445,10 +334,10 @@ export const AdminAuthProvider = ({ children }) => {
       await signOut(auth)
       setAdminUser(null)
       setPendingAdminWithPersistence(null)
-      setOtpSent(false)
+      setTokenSent(false)
       setSessionExpiry(null)
       localStorage.removeItem('adminSession')
-      sessionStorage.removeItem('otpSentForPending')
+      sessionStorage.removeItem('tokenSentForPending')
       toast.success('Admin logged out successfully')
     } catch (error) {
       // console.error('Error logging out:', error)
@@ -583,12 +472,12 @@ export const AdminAuthProvider = ({ children }) => {
     adminUser,
     loading,
     authLoading,
-    otpSent,
+    tokenSent,
     pendingAdmin,
     sessionExpiry,
     signInAdminWithGoogle,
-    verifyOTP,
-    resendOTP,
+    verifyAdminToken,
+    resendAdminToken,
     logoutAdmin,
     checkAdminStatus,
     logAdminActivity,

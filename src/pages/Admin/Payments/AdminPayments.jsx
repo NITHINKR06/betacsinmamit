@@ -219,7 +219,7 @@ export default function AdminPayments() {
         isOpen={showOTPModal}
         onClose={handleOTPCancel}
         onSuccess={handleOTPSuccess}
-        adminEmail="csidatabasenmamit@gmail.com"
+        adminEmail={adminUser?.email || ''}
       />
     )
   }

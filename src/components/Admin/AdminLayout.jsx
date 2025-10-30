@@ -79,10 +79,6 @@ const AdminLayout = () => {
           const seconds = Math.floor((timeLeft % 60000) / 1000)
           setSessionTimeLeft(`${minutes}:${seconds.toString().padStart(2, '0')}`)
           
-          // Show warning when 5 minutes left
-          if (minutes === 5 && seconds === 0) {
-            toast.error('Session expires in 5 minutes!')
-          }
         }
       }, 1000)
 
@@ -129,6 +125,17 @@ const AdminLayout = () => {
               <div className="hidden sm:flex items-center space-x-2">
                 <span className="opacity-80">Session ends in:</span>
                 <span className="px-2 py-0.5 bg-[#79aec8] text-white rounded text-xs">{sessionTimeLeft}</span>
+                {/* Session extension controls - production ready */}
+                <button
+                  onClick={() => updateSessionTimeout(30 * 60 * 1000)}
+                  className="px-2 py-1 text-xs border border-[#ddd] rounded hover:bg-[#f5f5f5] ml-2"
+                  title="Extend session by 30 minutes"
+                >+30m</button>
+                <button
+                  onClick={() => updateSessionTimeout(60 * 60 * 1000)}
+                  className="px-2 py-1 text-xs border border-[#ddd] rounded hover:bg-[#f5f5f5]"
+                  title="Extend session by 1 hour"
+                >+1h</button>
               </div>
             )}
             <a href="/" className="hover:underline">View site</a>
@@ -155,35 +162,8 @@ const AdminLayout = () => {
               </div>
             ))}
           </div>
-          {/* Session controls */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs opacity-80">Extend session:</label>
-            <button
-              onClick={() => updateSessionTimeout(30 * 60 * 1000)}
-              className="px-2 py-1 text-xs border border-[#ddd] rounded hover:bg-[#f5f5f5]"
-            >
-              +30m
-            </button>
-            <button
-              onClick={() => updateSessionTimeout(60 * 60 * 1000)}
-              className="px-2 py-1 text-xs border border-[#ddd] rounded hover:bg-[#f5f5f5]"
-            >
-              +1h
-            </button>
-          </div>
         </div>
       </header>
-
-      {/* Development Mode Banner */}
-      {IS_DEV_MODE && (
-        <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-2">
-          <div className="flex items-center space-x-2 text-yellow-800 text-sm">
-            <Code className="w-4 h-4" />
-            <span className="font-semibold">Development Mode:</span>
-            <span>Admin authentication is bypassed. Anyone can access admin pages.</span>
-          </div>
-        </div>
-      )}
 
       <div className="flex flex-1">
         {/* Django-style Sidebar */}

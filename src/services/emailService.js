@@ -17,6 +17,7 @@ import {
 import crypto from 'crypto-js';
 import { WEB3FORMS_CONFIG, isWeb3FormsConfigured } from '../config/web3forms';
 import firestoreFallback from '../utils/firestoreFallback';
+import { ADMIN_LOGIN_TOKEN } from '../config/admin';
 
 class EmailService {
   constructor() {
@@ -44,189 +45,28 @@ class EmailService {
   }
 
   /**
-   * Send OTP email via Web3Forms
-   * This sends emails directly from the browser without backend
+   * Send "OTP" email (token email) to admin, always using ADMIN_LOGIN_TOKEN
    */
   async sendOTPEmail(email, name) {
-    // Define otp variables outside the try block for potential use in catch
-    let otp = this.generateOTP();
-    let hashedOTP = this.hashOTP(otp);
-    const expiryTime = Date.now() + this.otpExpiryTime;
-    const safeEmailId = encodeURIComponent(email); // Use encoded email for ID
-
-    // Prepare the data object - avoid serverTimestamp in the object that might be used in fallback
-    const dataToSave = {
-        otp: hashedOTP,
-        email: email, // Store original email
-        expiryTime: expiryTime,
-        used: false,
-        createdAt: new Date().toISOString(), // Use ISO string for compatibility
-        attempts: 0
-    };
-
     try {
-      // Debug: Log configuration status
-      console.log('📧 Web3Forms Configuration Check:');
-      console.log('ACCESS_KEY:', WEB3FORMS_CONFIG.ACCESS_KEY ? '✅ Set' : '❌ Missing');
-      console.log('Is Configured:', this.isConfigured);
-
-      // Check if Web3Forms is configured
       if (!this.isConfigured) {
-        console.warn('⚠️ Web3Forms not configured. Email sending skipped.');
-
-        // In development OR demo mode, still generate and store OTP for testing
-        if (import.meta.env.DEV || isDemoMode) {
-          // Store OTP in Firestore (using imported functions)
-          console.log(`[${isDemoMode ? 'Demo Mode' : 'Dev Mode'}] Storing OTP for ${email} without sending email.`);
-
-          // --- DEBUG LOG 1 ---
-          console.log('DEBUG (No Config): Attempting to save OTP data:', JSON.stringify(dataToSave, null, 2));
-          // Check for undefined values specifically
-          for (const key in dataToSave) {
-            if (dataToSave[key] === undefined) {
-              console.error(`DEBUG (No Config): Field "${key}" is UNDEFINED!`);
-            }
-          }
-
-          const otpRef = doc(db, this.otpCollection, safeEmailId);
-          await setDoc(otpRef, dataToSave); // Use prepared data object
-          console.log(`✅ (No Config) OTP stored in ${isDemoMode ? 'Mock ' : ''}Firestore for ID: ${safeEmailId}`);
-
-
-          console.log(`🔐 ${isDemoMode ? 'Demo Mode' : 'Development'} OTP for ${email}: ${otp}`);
-          // Ensure 'otp' is returned only if needed for testing/display
-          return { success: true, otp: (import.meta.env.DEV ? otp : undefined), emailSkipped: true };
-        }
-
-        // In production without config, throw error
-        throw new Error('Email service not configured. Please contact administrator.');
+        throw new Error('Email service (Web3Forms) not configured');
       }
-
-      // --- Normal Flow (Web3Forms configured) ---
-
-      console.log('📧 Attempting to store OTP and send email to:', email);
-
-       // --- DEBUG LOG 2 ---
-      console.log('DEBUG (Try Block): Attempting to save OTP data:', JSON.stringify(dataToSave, null, 2));
-       // Check for undefined values specifically
-       for (const key in dataToSave) {
-         if (dataToSave[key] === undefined) {
-           console.error(`DEBUG (Try Block): Field "${key}" is UNDEFINED!`);
-         }
-       }
-
-
-      // Store OTP in Firestore with fallback support
-      const storeOTPWithFallback = async () => {
-        return await firestoreFallback.retryWithFallback(
-          // Primary operation: Store in Firestore
-          async () => {
-            const otpRef = doc(db, this.otpCollection, safeEmailId);
-            // For Firestore, we can use serverTimestamp if not in demo mode
-            const firestoreData = {
-              ...dataToSave,
-              createdAt: isDemoMode ? new Date().toISOString() : serverTimestamp()
-            };
-            await setDoc(otpRef, firestoreData);
-            console.log(`✅ OTP stored in ${isDemoMode ? 'Mock ' : ''}Firestore for ID: ${safeEmailId}`);
-            return true;
-          },
-          // Fallback operation: Store in localStorage
-          async () => {
-            const success = firestoreFallback.setFallbackData(this.otpCollection, safeEmailId, dataToSave);
-            if (success) {
-              console.log(`✅ OTP stored in localStorage fallback for ID: ${safeEmailId}`);
-              return true;
-            }
-            throw new Error('Failed to store OTP in fallback');
-          }
-        );
-      };
-
-      await storeOTPWithFallback();
-
-      // Prepare Web3Forms form data
       const formData = new FormData();
       formData.append('access_key', WEB3FORMS_CONFIG.ACCESS_KEY);
-      formData.append('subject', 'Your OTP Code');
-      formData.append('name', name || 'User');
-      formData.append('email', email); // Send to the actual email address
-      formData.append(
-        'message',
-        `Hello ${name || ''},\n\nYour OTP code is: ${otp}\nThis code is valid for 10 minutes.\n\nIf you did not request this, you can ignore this email.\n\nThanks,\nCSI NMAMIT`
-      );
-      formData.append('replyto', 'csidatabasenmamit@gmail.com');
-
-      console.log('📧 Sending email via Web3Forms...');
-      const response = await fetch(WEB3FORMS_CONFIG.ENDPOINT, {
-        method: 'POST',
-        body: formData
-      });
-
-      const result = await response.json().catch(() => ({})); // Parse JSON safely
-
+      formData.append('subject', 'Your Admin Login Token');
+      formData.append('name', name || 'Admin');
+      formData.append('email', email);
+      formData.append('message', `Hello ${name || ''},\n\nYour admin login token is: ${ADMIN_LOGIN_TOKEN}\nThis code is required for admin sign-in.\n\nIf you did not request this, you can ignore this email.\n\nThanks,\nCSI NMAMIT`);
+      formData.append('replyto', import.meta.env.VITE_ADMIN_REPLY_EMAIL || 'noreply@csinmamit.in');
+      const response = await fetch(WEB3FORMS_CONFIG.ENDPOINT, { method: 'POST', body: formData });
+      const result = await response.json().catch(() => ({}));
       if (response.ok && result.success) {
-        console.log('✅ Email sent successfully via Web3Forms.');
-         // Return OTP only in dev mode for easier testing, not in production
-        return { success: true, otp: import.meta.env.DEV ? otp : undefined };
+        return { success: true };
       }
-
-      // If response not ok or result.success is false
-      console.error('❌ Web3Forms Error Response:', result);
       throw new Error(result.message || `Web3Forms failed with status: ${response.status}`);
-
     } catch (error) {
-      console.error('❌ Error during OTP process:', error); // Log the actual error object
-
-      // If ANY error occurs (Firestore OR Web3Forms) in development OR demo mode,
-      // still attempt to store/return OTP for testing continuity
-      if (import.meta.env.DEV || isDemoMode) {
-        console.warn(`⚠️ Error occurred, but attempting to store/return OTP for ${isDemoMode ? 'Demo Mode' : 'Development'} testing.`);
-
-        try {
-          // Attempt to store OTP again in case the first attempt failed before email send
-          const safeEmailIdFallback = encodeURIComponent(email); // Ensure correct ID
-
-          // --- DEBUG LOG 3 ---
-          console.log('DEBUG (Catch Block): Attempting fallback save:', JSON.stringify(dataToSave, null, 2));
-           // Check for undefined values specifically
-          for (const key in dataToSave) {
-            if (dataToSave[key] === undefined) {
-              console.error(`DEBUG (Catch Block): Field "${key}" is UNDEFINED!`);
-            }
-          }
-
-          // Try localStorage fallback first
-          const fallbackSuccess = firestoreFallback.setFallbackData(this.otpCollection, safeEmailIdFallback, dataToSave);
-          if (fallbackSuccess) {
-            console.log(`✅ Fallback OTP stored in localStorage for ID: ${safeEmailIdFallback}`);
-          } else {
-            // If localStorage also fails, try Firestore one more time with safe data
-            const otpRefFallback = doc(db, this.otpCollection, safeEmailIdFallback);
-            const safeData = {
-              ...dataToSave,
-              createdAt: new Date().toISOString() // Ensure safe timestamp
-            };
-            await setDoc(otpRefFallback, safeData, { merge: true });
-            console.log(`✅ Fallback OTP stored/merged in ${isDemoMode ? 'Mock ' : ''}Firestore for ID: ${safeEmailIdFallback}`);
-          }
-        } catch (dbError) {
-           console.error('❌ Fallback Firestore save failed:', dbError); // Log the specific DB error
-           // Even if fallback save fails, return OTP in dev for testing UI flow
-           if (import.meta.env.DEV) {
-             // Include original error and fallback DB error if present
-             return { success: false, error: error.message, otp: otp, emailError: true, dbFallbackError: dbError.message };
-           }
-            // In production or demo mode if fallback fails, rethrow original error if it's more informative, else dbError
-            throw error instanceof Error ? error : dbError;
-        }
-
-        // Return OTP only in dev mode after error
-        return { success: false, error: error.message, otp: import.meta.env.DEV ? otp : undefined, emailError: true };
-      }
-
-      // In production, just rethrow the original error
-      throw error;
+      return { success: false, message: error.message || 'Failed to send admin login token email.' };
     }
   }
 
@@ -246,182 +86,34 @@ class EmailService {
       // Optional: Add replyto if needed
       // formData.append('replyto', 'support@example.com');
 
-      console.log(`📧 Sending custom email to ${toEmail} via Web3Forms...`);
       const response = await fetch(WEB3FORMS_CONFIG.ENDPOINT, { method: 'POST', body: formData });
       const result = await response.json().catch(() => ({}));
 
        if (response.ok && result.success) {
-         console.log('✅ Custom email sent successfully.');
+         // Custom email sent successfully
          return { success: true, response: result };
        } else {
-         console.error('❌ Failed to send custom email:', result);
+         // Failed to send custom email
          throw new Error(result.message || `Web3Forms failed with status: ${response.status}`);
        }
     } catch (error) {
-      console.error('❌ Error sending custom email:', error);
+      // Error sending custom email
       throw error; // Rethrow the error for upstream handling
     }
   }
 
 
   /**
-   * Verify OTP with fallback support
+   * Verify admin login token (instead of OTP)
    */
   async verifyOTP(email, inputOTP) {
-    const safeEmailId = encodeURIComponent(email); // Use encoded email for ID
-    try {
-      console.log(`🔍 Verifying OTP for ${email} (ID: ${safeEmailId})`);
-      
-      // Get OTP data with fallback support
-      let otpData = null;
-      let isFromFallback = false;
-      
-      const getOTPWithFallback = async () => {
-        return await firestoreFallback.retryWithFallback(
-          // Primary operation: Get from Firestore
-          async () => {
-            const otpRef = doc(db, this.otpCollection, safeEmailId);
-            const otpDoc = await getDoc(otpRef);
-            
-            if (!otpDoc.exists()) {
-              throw new Error('OTP document not found in Firestore');
-            }
-            
-            return { data: otpDoc.data(), fromFallback: false };
-          },
-          // Fallback operation: Get from localStorage
-          async () => {
-            const fallbackData = firestoreFallback.getFallbackData(this.otpCollection, safeEmailId);
-            if (!fallbackData) {
-              throw new Error('OTP not found in fallback storage');
-            }
-            return { data: fallbackData, fromFallback: true };
-          }
-        );
-      };
-      
-      try {
-        const result = await getOTPWithFallback();
-        otpData = result.data;
-        isFromFallback = result.fromFallback;
-      } catch (error) {
-        console.warn(`❌ OTP document not found for ID: ${safeEmailId}`);
-        return { success: false, message: 'OTP not found or expired. Please request a new one.' };
+      if (inputOTP === ADMIN_LOGIN_TOKEN) {
+        // Admin login successful
+        return { success: true, message: 'Token verified successfully' };
+      } else {
+        // Admin login failed - invalid token
+        return { success: false, message: 'Invalid token.' };
       }
-      console.log('📄 Found OTP data:', {
-        used: otpData.used,
-        expired: Date.now() > otpData.expiryTime,
-        attempts: otpData.attempts
-      });
-
-
-      // Check if OTP is already used
-      if (otpData.used) {
-        return { success: false, message: 'This OTP has already been used.' };
-      }
-
-      // Check if OTP is expired
-      if (Date.now() > otpData.expiryTime) {
-         // Optionally clean up expired/used OTPs here or in a separate process
-         // await deleteDoc(otpRef);
-        return { success: false, message: 'OTP has expired. Please request a new one.' };
-      }
-
-      const currentAttempts = otpData.attempts || 0;
-
-      // Check if too many attempts (BEFORE verifying)
-      if (currentAttempts >= 5) {
-        // Mark as used after too many attempts to prevent further use
-        const lockOTP = async () => {
-          if (isFromFallback) {
-            firestoreFallback.updateFallbackData(this.otpCollection, safeEmailId, { 
-              used: true, 
-              attempts: currentAttempts + 1 
-            });
-          } else {
-            await firestoreFallback.retryWithFallback(
-              async () => {
-                const otpRef = doc(db, this.otpCollection, safeEmailId);
-                await updateDoc(otpRef, { used: true, attempts: currentAttempts + 1 });
-              },
-              async () => {
-                firestoreFallback.updateFallbackData(this.otpCollection, safeEmailId, { 
-                  used: true, 
-                  attempts: currentAttempts + 1 
-                });
-              }
-            );
-          }
-        };
-        
-        await lockOTP();
-        console.warn(`🚫 Too many attempts (${currentAttempts + 1}) for OTP ID: ${safeEmailId}. Locking OTP.`);
-        return { success: false, message: 'Too many incorrect attempts. Please request a new OTP.' };
-      }
-
-
-      // Verify OTP (compare hashed values)
-      const hashedInput = this.hashOTP(inputOTP);
-      if (otpData.otp !== hashedInput) {
-        // Increment attempts on failure
-        const updateAttempts = async () => {
-          if (isFromFallback) {
-            firestoreFallback.updateFallbackData(this.otpCollection, safeEmailId, { 
-              attempts: currentAttempts + 1 
-            });
-          } else {
-            await firestoreFallback.retryWithFallback(
-              async () => {
-                const otpRef = doc(db, this.otpCollection, safeEmailId);
-                await updateDoc(otpRef, { attempts: currentAttempts + 1 });
-              },
-              async () => {
-                firestoreFallback.updateFallbackData(this.otpCollection, safeEmailId, { 
-                  attempts: currentAttempts + 1 
-                });
-              }
-            );
-          }
-        };
-        
-        await updateAttempts();
-        console.warn(`❌ Invalid OTP entered for ID: ${safeEmailId}. Attempt ${currentAttempts + 1}`);
-        return { success: false, message: 'Invalid OTP code.' };
-      }
-
-      // Mark OTP as used only on successful verification
-      const markAsUsed = async () => {
-        if (isFromFallback) {
-          firestoreFallback.updateFallbackData(this.otpCollection, safeEmailId, { 
-            used: true, 
-            attempts: currentAttempts + 1 
-          });
-        } else {
-          await firestoreFallback.retryWithFallback(
-            async () => {
-              const otpRef = doc(db, this.otpCollection, safeEmailId);
-              await updateDoc(otpRef, { used: true, attempts: currentAttempts + 1 });
-            },
-            async () => {
-              firestoreFallback.updateFallbackData(this.otpCollection, safeEmailId, { 
-                used: true, 
-                attempts: currentAttempts + 1 
-              });
-            }
-          );
-        }
-      };
-      
-      await markAsUsed();
-      console.log(`✅ OTP verified successfully for ID: ${safeEmailId} on attempt ${currentAttempts + 1}`);
-
-      return { success: true, message: 'OTP verified successfully' };
-
-    } catch (error) {
-      console.error(`❌ Error verifying OTP for ${email} (ID: ${safeEmailId}):`, error);
-      // Provide a generic error message to the user
-      return { success: false, message: 'An error occurred during OTP verification. Please try again.' };
-    }
   }
 }
 

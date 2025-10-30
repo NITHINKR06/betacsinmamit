@@ -159,12 +159,12 @@ export const testEmailSend = async (testEmail) => {
       to_email: testEmail,
       to_name: 'Test User',
       from_name: 'CSI NMAMIT',
-      reply_to: 'csidatabasenmamit@gmail.com',
+      reply_to: import.meta.env.VITE_ADMIN_REPLY_EMAIL || 'noreply@csinmamit.in',
       otp_code: testOTP,
       valid_time: '10 minutes',
       current_year: new Date().getFullYear(),
       app_name: 'CSI NMAMIT Admin Panel',
-      support_email: 'csidatabasenmamit@gmail.com'
+      support_email: import.meta.env.VITE_ADMIN_REPLY_EMAIL || 'noreply@csinmamit.in'
     }
     
     // console.log('📧 Sending test email with parameters:')

@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from '../../contexts/AdminAuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  Shield, 
-  Mail, 
-  Key, 
-  ArrowRight, 
-  RefreshCw, 
+import {
+  Shield,
+  Mail,
+  Key,
+  ArrowRight,
+  RefreshCw,
   CheckCircle,
   AlertCircle,
   Clock,
@@ -20,17 +20,18 @@ import firestoreFallback from '../../utils/firestoreFallback'
 
 const AdminLogin = () => {
   const navigate = useNavigate()
-  const { 
+  const {
     adminUser,
     authLoading,
     signInAdminWithGoogle,
     pendingAdmin,
-    otpSent,
-    verifyOTP,
-    resendOTP
+    tokenSent,
+    verifyAdminToken,
+    resendAdminToken
   } = useAdminAuth()
 
-  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  // Replace OTP state with admin token state
+  const [adminToken, setAdminToken] = useState('')
   const [resendTimer, setResendTimer] = useState(0)
   const [attempts, setAttempts] = useState(0)
   const [checkingRedirect, setCheckingRedirect] = useState(true)
@@ -42,22 +43,22 @@ const AdminLogin = () => {
   useEffect(() => {
     // Check if we're returning from an OAuth redirect
     const urlParams = new URLSearchParams(window.location.search)
-    const isReturningFromAuth = urlParams.has('code') || urlParams.has('state') || 
+    const isReturningFromAuth = urlParams.has('code') || urlParams.has('state') ||
                                 window.location.hash.includes('access_token')
-    
+
     // If we have a stored pending admin or returning from auth, wait longer
     const storedPending = sessionStorage.getItem('pendingAdmin')
     const authInitiated = sessionStorage.getItem('authRedirectInitiated')
-    
+
     const waitTime = (isReturningFromAuth || storedPending || authInitiated) ? 3000 : 1500
-    
+
     const timer = setTimeout(async () => {
       setCheckingRedirect(false)
       // Clean up the auth initiated flag
       if (authInitiated && !isReturningFromAuth) {
         sessionStorage.removeItem('authRedirectInitiated')
       }
-      
+
       // Check for blocking extensions
       const blockingInfo = await firestoreFallback.detectBlockingExtensions()
       if (blockingInfo.hasBlocker) {
@@ -65,7 +66,7 @@ const AdminLogin = () => {
         console.warn('Ad blocker or network blocking detected')
       }
     }, waitTime)
-    
+
     return () => clearTimeout(timer)
   }, [])
 
@@ -77,10 +78,10 @@ const AdminLogin = () => {
   }, [adminUser, navigate])
 
   useEffect(() => {
-    if (otpSent && resendTimer === 0) {
+    if (tokenSent && resendTimer === 0) {
       setResendTimer(60)
     }
-  }, [otpSent])
+  }, [tokenSent])
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -98,38 +99,14 @@ const AdminLogin = () => {
     }
   }
 
-  const handleOtpChange = (index, value) => {
-    if (value.length <= 1 && /^\d*$/.test(value)) {
-      const next = [...otp]
-      next[index] = value
-      setOtp(next)
-      if (value && index < 5) {
-        const el = document.getElementById(`otp-${index + 1}`)
-        el && el.focus()
-      }
-    }
-  }
-
-  const handleKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      const prev = document.getElementById(`otp-${index - 1}`)
-      prev && prev.focus()
-    }
-  }
-
-  const handlePaste = (e) => {
-    e.preventDefault()
-    const pasted = e.clipboardData.getData('text').slice(0, 6)
-    if (/^\d+$/.test(pasted)) {
-      const next = pasted.split('').concat(Array(6).fill('')).slice(0, 6)
-      setOtp(next)
-    }
+  // Replace handleOtpChange, handleKeyDown, handlePaste with a single handler
+  const handleTokenInput = (e) => {
+    setAdminToken(e.target.value)
   }
 
   const handleVerify = async () => {
-    const code = otp.join('')
-    if (code.length !== 6) {
-      toast.error('Please enter complete OTP')
+    if (!adminToken || adminToken.length < 6) {
+      toast.error('Please enter the full admin login token')
       return
     }
     if (attempts >= maxAttempts) {
@@ -137,25 +114,20 @@ const AdminLogin = () => {
       return
     }
     setAttempts(attempts + 1)
-    const ok = await verifyOTP(code)
+    const ok = await verifyAdminToken(adminToken)
     if (!ok) {
-      setOtp(['', '', '', '', '', ''])
-      document.getElementById('otp-0')?.focus()
+      setAdminToken('')
     }
   }
 
   const handleResend = async () => {
     if (resendTimer > 0) return
-    const ok = await resendOTP()
+    const ok = await resendAdminToken()
     if (ok) {
       setResendTimer(60)
-      setOtp(['', '', '', '', '', ''])
+      setAdminToken('')
     }
   }
-
-  // OTP removed
-
-  // OTP removed
 
   // Show loading while checking for redirect result or if auth is in progress
   if ((checkingRedirect || authLoading) && !pendingAdmin) {
@@ -201,13 +173,13 @@ const AdminLogin = () => {
                   exit={{ opacity: 0, x: 20 }}
                 >
                   <h2 className="text-xl font-normal text-[#333] mb-6">Admin Login</h2>
-                  
+
                   <div className="mb-6 space-y-3">
                     <div className="bg-[#d1ecf1] border border-[#bee5eb] rounded p-3 text-sm text-[#0c5460]">
                       <AlertCircle className="inline w-4 h-4 mr-2" />
                       Only authorized administrators can access this area
                     </div>
-                    
+
                     {blockingDetected && (
                       <div className="bg-[#fff3cd] border border-[#ffeeba] rounded p-3 text-sm text-[#856404]">
                         <ShieldOff className="inline w-4 h-4 mr-2" />
@@ -220,7 +192,7 @@ const AdminLogin = () => {
                         </button>
                       </div>
                     )}
-                    
+
                     {showTroubleshooting && (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
@@ -239,7 +211,7 @@ const AdminLogin = () => {
                         </ol>
                       </motion.div>
                     )}
-                    
+
                     {!navigator.onLine && (
                       <div className="bg-[#f8d7da] border border-[#f5c6cb] rounded p-3 text-sm text-[#721c24]">
                         <WifiOff className="inline w-4 h-4 mr-2" />
@@ -271,49 +243,42 @@ const AdminLogin = () => {
                   <div className="mt-6 text-center"></div>
                 </motion.div>
               ) : (
-                // Step 2: OTP Verification
+                // Step 2: Token Verification
                 <motion.div
-                  key="otp"
+                  key="token"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
                 >
-                  <h2 className="text-xl font-normal text-[#333] mb-6">Verify OTP</h2>
+                  <h2 className="text-xl font-normal text-[#333] mb-6">Admin Login Token</h2>
 
                   <div className="mb-4 space-y-3">
                     <div className="p-3 bg-[#fff3cd] border border-[#ffeeba] rounded">
                       <Clock className="inline w-4 h-4 mr-2 text-[#856404]" />
-                      We sent a 6-digit code to <span className="font-medium">{pendingAdmin?.email}</span>
+                      We sent your admin login token to <span className="font-medium">{pendingAdmin?.email}</span>
                     </div>
-                    
                     {blockingDetected && (
                       <div className="p-3 bg-[#fff3cd] border border-[#ffeeba] rounded text-sm">
                         <AlertCircle className="inline w-4 h-4 mr-2 text-[#856404]" />
                         <span className="text-[#856404]">
-                          If verification fails, please disable ad blockers and try again
+                          If you do not receive your token, please disable ad blockers and try again
                         </span>
                       </div>
                     )}
                   </div>
 
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-[#333] mb-2">Enter 6-digit OTP</label>
-                    <div className="flex justify-between space-x-2">
-                      {otp.map((digit, index) => (
-                        <input
-                          key={index}
-                          id={`otp-${index}`}
-                          type="text"
-                          maxLength="1"
-                          value={digit}
-                          onChange={(e) => handleOtpChange(index, e.target.value)}
-                          onKeyDown={(e) => handleKeyDown(index, e)}
-                          onPaste={index === 0 ? handlePaste : undefined}
-                          className="w-12 h-12 text-center text-lg font-semibold border border-[#ddd] rounded focus:border-[#417690] focus:ring-1 focus:ring-[#417690]"
-                          disabled={authLoading}
-                        />
-                      ))}
-                    </div>
+                    <label className="block text-sm font-medium text-[#333] mb-2">Enter your admin login token</label>
+                    <input
+                      type="password"
+                      value={adminToken}
+                      onChange={handleTokenInput}
+                      className="w-full h-12 text-center text-lg font-semibold border border-[#ddd] rounded focus:border-[#417690] focus:ring-1 focus:ring-[#417690]"
+                      disabled={authLoading}
+                      maxLength={16}
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
                   </div>
 
                   {attempts > 0 && (
@@ -330,14 +295,14 @@ const AdminLogin = () => {
                       className={`text-sm ${resendTimer > 0 ? 'text-gray-400 cursor-not-allowed' : 'text-[#417690] hover:text-[#205067]'} flex items-center space-x-1`}
                     >
                       <RefreshCw className="w-4 h-4" />
-                      <span>{resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : 'Resend OTP'}</span>
+                      <span>{resendTimer > 0 ? `Resend token in ${resendTimer}s` : 'Resend Token'}</span>
                     </button>
-                    <span className="text-xs text-[#666]">Valid for 10 minutes</span>
+                    <span className="text-xs text-[#666]">Token valid for limited time</span>
                   </div>
 
                   <button
                     onClick={handleVerify}
-                    disabled={authLoading || otp.join('').length !== 6}
+                    disabled={authLoading || adminToken.length < 6}
                     className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-[#417690] text-white rounded hover:bg-[#205067] disabled:bg-gray-300 disabled:cursor-not-allowed"
                   >
                     {authLoading ? (

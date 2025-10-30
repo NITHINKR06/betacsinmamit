@@ -101,43 +101,56 @@ export const AdminAuthProvider = ({ children }) => {
 
   // Sign in with Google (Step 1)
   const signInAdminWithGoogle = async () => {
-    setAuthLoading(true)
+    setAuthLoading(true);
     try {
-      // In development: try popup first to avoid redirect/cookie issues
-      if (import.meta.env?.DEV && auth && googleProvider) {
+      // Always try popup first (works in most browsers)
+      if (auth && googleProvider) {
         try {
-          const result = await signInWithPopup(auth, googleProvider)
-          const user = result?.user
+          const result = await signInWithPopup(auth, googleProvider);
+          const user = result?.user;
+          
           if (user) {
+            console.log('Popup sign-in successful for:', user.email);
+            
             // Whitelist check
             if (!isWhitelistedAdmin(user.email)) {
-              await signOut(auth)
-              toast.error('Unauthorized: You are not an admin')
-              return null
+              await signOut(auth);
+              toast.error('Unauthorized: You are not an admin');
+              setAuthLoading(false);
+              return null;
             }
+            
             // Prepare OTP step with persistence
-            setPendingAdminWithPersistence({
+            const adminData = {
               uid: user.uid,
               email: user.email,
               name: user.displayName,
               photoURL: user.photoURL
-            })
-            await sendOTPEmail(user.email, user.displayName || 'Admin')
-            return null
+            };
+            
+            setPendingAdminWithPersistence(adminData);
+            await sendOTPEmail(user.email, user.displayName || 'Admin');
+            sessionStorage.setItem('otpSentForPending', 'true');
+            setOtpSent(true);
+            setAuthLoading(false);
+            return null;
           }
-        } catch (_) {
-          // Fallback to redirect if popup blocked or fails
+        } catch (popupError) {
+          console.log('Popup blocked or failed, falling back to redirect:', popupError.message);
+          
+          // Mark that we're initiating a redirect
+          sessionStorage.setItem('authRedirectInitiated', 'true');
+          
+          // Fallback to redirect if popup is blocked
+          await signInWithRedirect(auth, googleProvider);
+          return null;
         }
       }
-
-      // Use redirect flow otherwise; OTP will be triggered after redirect
-      await signInWithRedirect(auth, googleProvider)
-      return null
     } catch (error) {
-      toast.error('Failed to sign in. Please try again.')
-      throw error
-    } finally {
-      setAuthLoading(false)
+      console.error('Sign-in error:', error);
+      toast.error('Failed to sign in. Please try again.');
+      setAuthLoading(false);
+      throw error;
     }
   }
 
@@ -149,31 +162,52 @@ export const AdminAuthProvider = ({ children }) => {
           return;
         }
 
+        // Check if we're returning from a redirect
+        const urlParams = new URLSearchParams(window.location.search);
+        const isReturningFromAuth = urlParams.has('code') || urlParams.has('state') || 
+                                    window.location.hash.includes('access_token');
+
+        // First check if we already have a pending admin from a previous redirect
+        const storedPending = sessionStorage.getItem('pendingAdmin');
+        
+        if (storedPending && !isReturningFromAuth) {
+          // We have a pending admin and not currently processing a redirect
+          const pendingData = JSON.parse(storedPending);
+          
+          // Restore the state
+          setPendingAdmin(pendingData);
+          
+          // Check if OTP was already sent
+          const otpSentFlag = sessionStorage.getItem('otpSentForPending');
+          if (!otpSentFlag) {
+            // OTP not sent yet, send it now
+            await sendOTPEmail(pendingData.email, pendingData.name);
+            sessionStorage.setItem('otpSentForPending', 'true');
+            setOtpSent(true);
+          } else {
+            setOtpSent(true);
+          }
+          return;
+        }
+
+        // Try to get redirect result
         const result = await getRedirectResult(auth);
         const user = result?.user;
 
         if (!user) {
-          // No redirect result, check if we have a pending admin from storage
-          const storedPending = sessionStorage.getItem('pendingAdmin')
-          if (storedPending) {
-            const pendingData = JSON.parse(storedPending)
-            // Check if OTP was already sent (to avoid resending)
-            const otpSentFlag = sessionStorage.getItem('otpSentForPending')
-            if (!otpSentFlag) {
-              // OTP not sent yet, send it now
-              await sendOTPEmail(pendingData.email, pendingData.name)
-              sessionStorage.setItem('otpSentForPending', 'true')
-            }
-          }
+          // No user from redirect and no stored pending admin
           return;
         }
+
+        // We have a user from redirect, process it
+        console.log('Processing redirect result for user:', user.email);
 
         // Check whitelist
         const isAdmin = isWhitelistedAdmin(user.email);
         if (!isAdmin) {
           await signOut(auth);
-          sessionStorage.removeItem('pendingAdmin')
-          sessionStorage.removeItem('otpSentForPending')
+          sessionStorage.removeItem('pendingAdmin');
+          sessionStorage.removeItem('otpSentForPending');
           toast.error('Unauthorized: You are not an admin');
           return;
         }
@@ -184,18 +218,35 @@ export const AdminAuthProvider = ({ children }) => {
           email: user.email,
           name: user.displayName,
           photoURL: user.photoURL
-        }
+        };
+        
         setPendingAdminWithPersistence(adminData);
 
         // Send OTP via EmailJS
         await sendOTPEmail(user.email, user.displayName || 'Admin');
-        sessionStorage.setItem('otpSentForPending', 'true')
+        sessionStorage.setItem('otpSentForPending', 'true');
+        setOtpSent(true);
+
+        // Clear URL parameters to prevent re-processing
+        if (isReturningFromAuth) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
 
       } catch (e) {
         console.error("Error in handleRedirect:", e);
-        toast.error('Error handling sign-in redirect');
+        
+        // Check if we have a stored pending admin even if redirect failed
+        const storedPending = sessionStorage.getItem('pendingAdmin');
+        if (storedPending) {
+          const pendingData = JSON.parse(storedPending);
+          setPendingAdmin(pendingData);
+          setOtpSent(true);
+        } else {
+          toast.error('Error handling sign-in redirect');
+        }
       }
     };
+    
     handleRedirect();
   }, []); // Keep dependency array empty
 

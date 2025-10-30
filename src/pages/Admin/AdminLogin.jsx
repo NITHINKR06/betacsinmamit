@@ -35,10 +35,25 @@ const AdminLogin = () => {
 
   // Check for redirect result on mount
   useEffect(() => {
-    // Give some time for redirect result to be processed
+    // Check if we're returning from an OAuth redirect
+    const urlParams = new URLSearchParams(window.location.search)
+    const isReturningFromAuth = urlParams.has('code') || urlParams.has('state') || 
+                                window.location.hash.includes('access_token')
+    
+    // If we have a stored pending admin or returning from auth, wait longer
+    const storedPending = sessionStorage.getItem('pendingAdmin')
+    const authInitiated = sessionStorage.getItem('authRedirectInitiated')
+    
+    const waitTime = (isReturningFromAuth || storedPending || authInitiated) ? 3000 : 1500
+    
     const timer = setTimeout(() => {
       setCheckingRedirect(false)
-    }, 2000)
+      // Clean up the auth initiated flag
+      if (authInitiated && !isReturningFromAuth) {
+        sessionStorage.removeItem('authRedirectInitiated')
+      }
+    }, waitTime)
+    
     return () => clearTimeout(timer)
   }, [])
 
@@ -130,8 +145,8 @@ const AdminLogin = () => {
 
   // OTP removed
 
-  // Show loading while checking for redirect result
-  if (checkingRedirect && !pendingAdmin) {
+  // Show loading while checking for redirect result or if auth is in progress
+  if ((checkingRedirect || authLoading) && !pendingAdmin) {
     return (
       <div className="min-h-screen bg-[#f8f8f8] flex items-center justify-center p-4">
         <div className="w-full max-w-md">
@@ -141,7 +156,10 @@ const AdminLogin = () => {
             </div>
             <div className="p-6 flex flex-col items-center justify-center">
               <RefreshCw className="w-8 h-8 animate-spin text-[#417690] mb-4" />
-              <p className="text-[#333]">Checking authentication status...</p>
+              <p className="text-[#333] text-center">
+                {authLoading ? 'Processing authentication...' : 'Checking authentication status...'}
+              </p>
+              <p className="text-xs text-gray-500 mt-2">Please wait...</p>
             </div>
           </div>
         </div>

@@ -154,8 +154,8 @@ service cloud.firestore {
       function isRelaxedUserProfileUpdate(newData, oldData) {
         // Only these fields can be updated in relaxed path
         return newData.diff(oldData).affectedKeys().hasOnly([
-                 'name','bio','branch','usn','github','linkedin','phone','year',
-                 'profile','updatedAt','photoURL'
+                'name','bio','branch','usn','github','linkedin','phone','year',
+                'profile','updatedAt','photoURL','certificates','email'
                ]) &&
                // Keep createdAt immutable
                (!(newData.keys().hasAny(['createdAt'])) || newData.createdAt == oldData.createdAt);

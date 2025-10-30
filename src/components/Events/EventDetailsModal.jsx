@@ -108,9 +108,17 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
 
   const handleLogin = async () => {
     try {
-      await signInWithGoogle()
-      toast.success('Successfully logged in!')
+      const result = await signInWithGoogle()
+      // Only show success if the popup path returned a user immediately
+      if (result) {
+        toast.success('Successfully logged in!')
+      }
     } catch (error) {
+      // Suppress error toast for user-initiated cancellations
+      const code = error?.code || ''
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        return
+      }
       toast.error('Failed to login. Please try again.')
     }
   }

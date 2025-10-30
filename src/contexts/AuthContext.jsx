@@ -205,8 +205,7 @@ export const AuthProvider = ({ children }) => {
       
       return user
     } catch (error) {
-      // console.error('❌ Error signing in:', error)
-      toast.error('Failed to sign in. Please try again.')
+      // Let callers decide how to surface auth errors to avoid duplicate toasts
       throw error
     } finally {
       setAuthLoading(false)

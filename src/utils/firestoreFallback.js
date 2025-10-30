@@ -211,6 +211,9 @@ class FirestoreFallback {
     }
     
     if (results.hasBlocker) {
+      // Mark Firestore as blocked so future operations immediately use fallback
+      this.isBlocked = true;
+      window.__FIRESTORE_UNAVAILABLE__ = true;
       results.suggestions = [
         'Disable ad blockers for this site',
         'Add this site to your ad blocker\'s whitelist',

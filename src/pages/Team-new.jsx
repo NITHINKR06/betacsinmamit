@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Loader2, RefreshCw } from 'lucide-react'
 import TeamHero from '../components/Team/TeamHero'
@@ -17,6 +18,8 @@ const Team = () => {
   const [faculty, setFaculty] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const location = useLocation()
+  const navigate = useNavigate()
 
   // Fetch team data from Firestore
   const fetchTeamData = async () => {
@@ -64,10 +67,35 @@ const Team = () => {
     }
   }
 
-  // Fetch data on component mount
+  // Fetch data on component mount and open modal if memberId is present in URL
   useEffect(() => {
-    fetchTeamData()
+    const openFromQueryIfAvailable = async () => {
+      await fetchTeamData()
+      const params = new URLSearchParams(location.search)
+      const memberId = params.get('memberId')
+      if (memberId) {
+        const allMembers = activeTab === 'faculty' ? faculty : students
+        const member = allMembers.find(m => (m.id || m.uid) === memberId)
+        if (member) {
+          setSelectedMember(member)
+        }
+      }
+    }
+    openFromQueryIfAvailable()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // When modal opens/closes, sync URL param so details are accessible without login via shareable link
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (selectedMember?.id) {
+      params.set('memberId', selectedMember.id)
+    } else {
+      params.delete('memberId')
+    }
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMember])
 
   // Refresh data
   const handleRefresh = () => {

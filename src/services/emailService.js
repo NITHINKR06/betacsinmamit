@@ -16,6 +16,7 @@ import {
 } from '../config/firebase';
 import crypto from 'crypto-js';
 import { WEB3FORMS_CONFIG, isWeb3FormsConfigured } from '../config/web3forms';
+import firestoreFallback from '../utils/firestoreFallback';
 
 class EmailService {
   constructor() {
@@ -59,7 +60,7 @@ class EmailService {
         email: email, // Store original email
         expiryTime: expiryTime,
         used: false,
-        createdAt: serverTimestamp(), // Correctly uses new Date() in demo mode
+        createdAt: isDemoMode ? new Date() : serverTimestamp(), // Handle timestamp properly
         attempts: 0
     };
 
@@ -115,10 +116,33 @@ class EmailService {
        }
 
 
-      // Store OTP in Firestore first (using imported functions)
-      const otpRef = doc(db, this.otpCollection, safeEmailId);
-      await setDoc(otpRef, dataToSave); // Use prepared data object
-      console.log(`✅ OTP stored in ${isDemoMode ? 'Mock ' : ''}Firestore for ID: ${safeEmailId}`);
+      // Store OTP in Firestore with fallback support
+      const storeOTPWithFallback = async () => {
+        return await firestoreFallback.retryWithFallback(
+          // Primary operation: Store in Firestore
+          async () => {
+            const otpRef = doc(db, this.otpCollection, safeEmailId);
+            await setDoc(otpRef, dataToSave);
+            console.log(`✅ OTP stored in ${isDemoMode ? 'Mock ' : ''}Firestore for ID: ${safeEmailId}`);
+            return true;
+          },
+          // Fallback operation: Store in localStorage
+          async () => {
+            const fallbackData = {
+              ...dataToSave,
+              createdAt: new Date().toISOString() // Convert Date to string for localStorage
+            };
+            const success = firestoreFallback.setFallbackData(this.otpCollection, safeEmailId, fallbackData);
+            if (success) {
+              console.log(`✅ OTP stored in localStorage fallback for ID: ${safeEmailId}`);
+              return true;
+            }
+            throw new Error('Failed to store OTP in fallback');
+          }
+        );
+      };
+
+      await storeOTPWithFallback();
 
       // Prepare Web3Forms form data
       const formData = new FormData();
@@ -229,21 +253,50 @@ class EmailService {
   }
 
 
-  // --- verifyOTP remains the same ---
+  /**
+   * Verify OTP with fallback support
+   */
   async verifyOTP(email, inputOTP) {
     const safeEmailId = encodeURIComponent(email); // Use encoded email for ID
     try {
       console.log(`🔍 Verifying OTP for ${email} (ID: ${safeEmailId})`);
-      // Get OTP document using the potentially mocked functions
-      const otpRef = doc(db, this.otpCollection, safeEmailId);
-      const otpDoc = await getDoc(otpRef);
-
-      if (!otpDoc.exists()) {
+      
+      // Get OTP data with fallback support
+      let otpData = null;
+      let isFromFallback = false;
+      
+      const getOTPWithFallback = async () => {
+        return await firestoreFallback.retryWithFallback(
+          // Primary operation: Get from Firestore
+          async () => {
+            const otpRef = doc(db, this.otpCollection, safeEmailId);
+            const otpDoc = await getDoc(otpRef);
+            
+            if (!otpDoc.exists()) {
+              throw new Error('OTP document not found in Firestore');
+            }
+            
+            return { data: otpDoc.data(), fromFallback: false };
+          },
+          // Fallback operation: Get from localStorage
+          async () => {
+            const fallbackData = firestoreFallback.getFallbackData(this.otpCollection, safeEmailId);
+            if (!fallbackData) {
+              throw new Error('OTP not found in fallback storage');
+            }
+            return { data: fallbackData, fromFallback: true };
+          }
+        );
+      };
+      
+      try {
+        const result = await getOTPWithFallback();
+        otpData = result.data;
+        isFromFallback = result.fromFallback;
+      } catch (error) {
         console.warn(`❌ OTP document not found for ID: ${safeEmailId}`);
         return { success: false, message: 'OTP not found or expired. Please request a new one.' };
       }
-
-      const otpData = otpDoc.data();
       console.log('📄 Found OTP data:', {
         used: otpData.used,
         expired: Date.now() > otpData.expiryTime,
@@ -266,25 +319,89 @@ class EmailService {
       const currentAttempts = otpData.attempts || 0;
 
       // Check if too many attempts (BEFORE verifying)
-       if (currentAttempts >= 5) {
-         // Mark as used after too many attempts to prevent further use
-         await updateDoc(otpRef, { used: true, attempts: currentAttempts + 1 });
-         console.warn(`🚫 Too many attempts (${currentAttempts + 1}) for OTP ID: ${safeEmailId}. Locking OTP.`);
-         return { success: false, message: 'Too many incorrect attempts. Please request a new OTP.' };
-       }
+      if (currentAttempts >= 5) {
+        // Mark as used after too many attempts to prevent further use
+        const lockOTP = async () => {
+          if (isFromFallback) {
+            firestoreFallback.updateFallbackData(this.otpCollection, safeEmailId, { 
+              used: true, 
+              attempts: currentAttempts + 1 
+            });
+          } else {
+            await firestoreFallback.retryWithFallback(
+              async () => {
+                const otpRef = doc(db, this.otpCollection, safeEmailId);
+                await updateDoc(otpRef, { used: true, attempts: currentAttempts + 1 });
+              },
+              async () => {
+                firestoreFallback.updateFallbackData(this.otpCollection, safeEmailId, { 
+                  used: true, 
+                  attempts: currentAttempts + 1 
+                });
+              }
+            );
+          }
+        };
+        
+        await lockOTP();
+        console.warn(`🚫 Too many attempts (${currentAttempts + 1}) for OTP ID: ${safeEmailId}. Locking OTP.`);
+        return { success: false, message: 'Too many incorrect attempts. Please request a new OTP.' };
+      }
 
 
       // Verify OTP (compare hashed values)
       const hashedInput = this.hashOTP(inputOTP);
       if (otpData.otp !== hashedInput) {
-         // Increment attempts on failure
-         await updateDoc(otpRef, { attempts: currentAttempts + 1 });
-         console.warn(`❌ Invalid OTP entered for ID: ${safeEmailId}. Attempt ${currentAttempts + 1}`);
+        // Increment attempts on failure
+        const updateAttempts = async () => {
+          if (isFromFallback) {
+            firestoreFallback.updateFallbackData(this.otpCollection, safeEmailId, { 
+              attempts: currentAttempts + 1 
+            });
+          } else {
+            await firestoreFallback.retryWithFallback(
+              async () => {
+                const otpRef = doc(db, this.otpCollection, safeEmailId);
+                await updateDoc(otpRef, { attempts: currentAttempts + 1 });
+              },
+              async () => {
+                firestoreFallback.updateFallbackData(this.otpCollection, safeEmailId, { 
+                  attempts: currentAttempts + 1 
+                });
+              }
+            );
+          }
+        };
+        
+        await updateAttempts();
+        console.warn(`❌ Invalid OTP entered for ID: ${safeEmailId}. Attempt ${currentAttempts + 1}`);
         return { success: false, message: 'Invalid OTP code.' };
       }
 
       // Mark OTP as used only on successful verification
-      await updateDoc(otpRef, { used: true, attempts: currentAttempts + 1 }); // Log the successful attempt too
+      const markAsUsed = async () => {
+        if (isFromFallback) {
+          firestoreFallback.updateFallbackData(this.otpCollection, safeEmailId, { 
+            used: true, 
+            attempts: currentAttempts + 1 
+          });
+        } else {
+          await firestoreFallback.retryWithFallback(
+            async () => {
+              const otpRef = doc(db, this.otpCollection, safeEmailId);
+              await updateDoc(otpRef, { used: true, attempts: currentAttempts + 1 });
+            },
+            async () => {
+              firestoreFallback.updateFallbackData(this.otpCollection, safeEmailId, { 
+                used: true, 
+                attempts: currentAttempts + 1 
+              });
+            }
+          );
+        }
+      };
+      
+      await markAsUsed();
       console.log(`✅ OTP verified successfully for ID: ${safeEmailId} on attempt ${currentAttempts + 1}`);
 
       return { success: true, message: 'OTP verified successfully' };

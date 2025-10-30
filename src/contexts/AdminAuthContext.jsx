@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore'
 import toast from 'react-hot-toast'
 import emailService from '../services/emailService'
+import firestoreFallback from '../utils/firestoreFallback'
 
 // Determine dev mode: use Vite's flag OR VITE_APP_ENV=development
 const IS_DEV_MODE = (import.meta.env?.DEV === true) || (import.meta.env?.VITE_APP_ENV === 'development')
@@ -272,7 +273,7 @@ export const AdminAuthProvider = ({ children }) => {
       setOtpSent(false)
     }
   }
-  // Verify OTP (Step 3)
+  // Verify OTP (Step 3) with fallback support
   const verifyOTP = async (inputOTP) => {
     if (!pendingAdmin) {
       toast.error('No pending admin login')
@@ -289,37 +290,87 @@ export const AdminAuthProvider = ({ children }) => {
         return false
       }
 
-      // Create/update admin user in Firestore
-      const adminRef = doc(db, 'admins', pendingAdmin.uid)
-      await setDoc(adminRef, {
-        uid: pendingAdmin.uid,
-        email: pendingAdmin.email,
-        name: pendingAdmin.name,
-        photoURL: pendingAdmin.photoURL,
-        role: 'admin',
-        verified: true,
-        lastLogin: serverTimestamp(),
-        loginHistory: [],
-        permissions: {
-          users: true,
-          events: true,
-          members: true,
-          content: true,
-          settings: true
-        }
-      }, { merge: true })
+      // Create/update admin user in Firestore with fallback support
+      const saveAdminData = async () => {
+        const adminData = {
+          uid: pendingAdmin.uid,
+          email: pendingAdmin.email,
+          name: pendingAdmin.name,
+          photoURL: pendingAdmin.photoURL,
+          role: 'admin',
+          verified: true,
+          lastLogin: isDemoMode ? new Date() : serverTimestamp(),
+          loginHistory: [],
+          permissions: {
+            users: true,
+            events: true,
+            members: true,
+            content: true,
+            settings: true
+          }
+        };
 
-      // Also create/update user document with admin role for Firestore rules
-      const userRef = doc(db, 'users', pendingAdmin.uid)
-      await setDoc(userRef, {
-        uid: pendingAdmin.uid,
-        email: pendingAdmin.email,
-        name: pendingAdmin.name,
-        photoURL: pendingAdmin.photoURL,
-        role: 'admin',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      }, { merge: true })
+        const userData = {
+          uid: pendingAdmin.uid,
+          email: pendingAdmin.email,
+          name: pendingAdmin.name,
+          photoURL: pendingAdmin.photoURL,
+          role: 'admin',
+          createdAt: isDemoMode ? new Date() : serverTimestamp(),
+          updatedAt: isDemoMode ? new Date() : serverTimestamp()
+        };
+
+        // Try to save to Firestore with fallback
+        const saveSuccess = await firestoreFallback.retryWithFallback(
+          // Primary operation: Save to Firestore
+          async () => {
+            const adminRef = doc(db, 'admins', pendingAdmin.uid)
+            await setDoc(adminRef, adminData, { merge: true })
+            
+            const userRef = doc(db, 'users', pendingAdmin.uid)
+            await setDoc(userRef, userData, { merge: true })
+            
+            console.log('✅ Admin data saved to Firestore')
+            return true
+          },
+          // Fallback operation: Save to localStorage
+          async () => {
+            // Store admin data in localStorage as fallback
+            const fallbackAdminData = {
+              ...adminData,
+              lastLogin: new Date().toISOString(),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+            
+            firestoreFallback.setFallbackData('admins', pendingAdmin.uid, fallbackAdminData);
+            firestoreFallback.setFallbackData('users', pendingAdmin.uid, {
+              ...userData,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+            
+            console.log('✅ Admin data saved to localStorage fallback')
+            
+            // Show warning to user
+            toast.warning('Using offline mode due to network issues. Some features may be limited.', {
+              duration: 5000,
+              icon: '⚠️'
+            });
+            
+            return true
+          }
+        );
+
+        return saveSuccess;
+      };
+
+      // Save admin data
+      const saved = await saveAdminData();
+      
+      if (!saved) {
+        throw new Error('Failed to save admin data');
+      }
 
       // Set admin session
       const sessionExp = Date.now() + SESSION_TIMEOUT
@@ -342,11 +393,32 @@ export const AdminAuthProvider = ({ children }) => {
       sessionStorage.removeItem('otpSentForPending')
       setOtpSent(false)
       
+      // Check if we should show blocking detection
+      if (firestoreFallback.isFirestoreBlocked()) {
+        const blockingInfo = await firestoreFallback.detectBlockingExtensions();
+        if (blockingInfo.hasBlocker) {
+          toast.error(
+            'Ad blocker detected! Please disable it for full functionality.',
+            { duration: 8000, icon: '🚫' }
+          );
+        }
+      }
+      
       toast.success('Admin login successful!')
       return true
     } catch (error) {
-      // console.error('Error verifying OTP:', error)
-      toast.error('Failed to verify OTP')
+      console.error('Error verifying OTP:', error)
+      
+      // Check if this is a blocking error
+      if (firestoreFallback.isBlockingError(error)) {
+        toast.error('Network blocked. Please disable ad blockers and try again.', {
+          duration: 6000,
+          icon: '🚫'
+        })
+      } else {
+        toast.error('Failed to verify OTP. Please try again.')
+      }
+      
       return false
     } finally {
       setAuthLoading(false)

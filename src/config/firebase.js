@@ -109,11 +109,38 @@ if (hasFirebaseConfig) {
   try {
     db = initializeFirestore(app, {
       experimentalAutoDetectLongPolling: true,
-      useFetchStreams: false
+      useFetchStreams: false,
+      experimentalForceLongPolling: true, // Force long polling to avoid WebChannel issues
+      cacheSizeBytes: 1048576 // 1 MB cache
     });
+    console.log('✅ Firestore initialized with long polling enabled');
   } catch (e) {
-     console.warn("Firestore initialization with options failed, falling back:", e);
-    db = getFirestore(app); // Fallback initialization
+    console.warn("Firestore initialization with options failed, falling back:", e);
+    try {
+      db = getFirestore(app); // Fallback initialization
+      console.log('✅ Firestore initialized with default settings');
+    } catch (fallbackError) {
+      console.error('❌ Firestore initialization completely failed:', fallbackError);
+      // Set a flag to indicate Firestore is not available
+      window.__FIRESTORE_UNAVAILABLE__ = true;
+    }
+  }
+  
+  // Add connection state monitoring
+  if (db && typeof window !== 'undefined') {
+    // Monitor online/offline status
+    window.addEventListener('online', () => {
+      console.log('🌐 Network connection restored');
+      window.__NETWORK_ONLINE__ = true;
+    });
+    
+    window.addEventListener('offline', () => {
+      console.warn('⚠️ Network connection lost');
+      window.__NETWORK_ONLINE__ = false;
+    });
+    
+    // Set initial state
+    window.__NETWORK_ONLINE__ = navigator.onLine;
   }
   
   // Assign REAL Firestore functions

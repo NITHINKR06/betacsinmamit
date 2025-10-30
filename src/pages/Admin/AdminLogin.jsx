@@ -11,9 +11,12 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
-  User
+  User,
+  WifiOff,
+  ShieldOff
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import firestoreFallback from '../../utils/firestoreFallback'
 
 const AdminLogin = () => {
   const navigate = useNavigate()
@@ -31,9 +34,11 @@ const AdminLogin = () => {
   const [resendTimer, setResendTimer] = useState(0)
   const [attempts, setAttempts] = useState(0)
   const [checkingRedirect, setCheckingRedirect] = useState(true)
+  const [blockingDetected, setBlockingDetected] = useState(false)
+  const [showTroubleshooting, setShowTroubleshooting] = useState(false)
   const maxAttempts = 3
 
-  // Check for redirect result on mount
+  // Check for redirect result on mount and detect blocking
   useEffect(() => {
     // Check if we're returning from an OAuth redirect
     const urlParams = new URLSearchParams(window.location.search)
@@ -46,11 +51,18 @@ const AdminLogin = () => {
     
     const waitTime = (isReturningFromAuth || storedPending || authInitiated) ? 3000 : 1500
     
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       setCheckingRedirect(false)
       // Clean up the auth initiated flag
       if (authInitiated && !isReturningFromAuth) {
         sessionStorage.removeItem('authRedirectInitiated')
+      }
+      
+      // Check for blocking extensions
+      const blockingInfo = await firestoreFallback.detectBlockingExtensions()
+      if (blockingInfo.hasBlocker) {
+        setBlockingDetected(true)
+        console.warn('Ad blocker or network blocking detected')
       }
     }, waitTime)
     
@@ -190,11 +202,50 @@ const AdminLogin = () => {
                 >
                   <h2 className="text-xl font-normal text-[#333] mb-6">Admin Login</h2>
                   
-                  <div className="mb-6">
+                  <div className="mb-6 space-y-3">
                     <div className="bg-[#d1ecf1] border border-[#bee5eb] rounded p-3 text-sm text-[#0c5460]">
                       <AlertCircle className="inline w-4 h-4 mr-2" />
                       Only authorized administrators can access this area
                     </div>
+                    
+                    {blockingDetected && (
+                      <div className="bg-[#fff3cd] border border-[#ffeeba] rounded p-3 text-sm text-[#856404]">
+                        <ShieldOff className="inline w-4 h-4 mr-2" />
+                        <span className="font-medium">Ad blocker detected!</span>
+                        <button
+                          onClick={() => setShowTroubleshooting(!showTroubleshooting)}
+                          className="ml-2 text-[#0066cc] hover:underline"
+                        >
+                          {showTroubleshooting ? 'Hide' : 'Show'} troubleshooting
+                        </button>
+                      </div>
+                    )}
+                    
+                    {showTroubleshooting && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="bg-[#f8f9fa] border border-[#dee2e6] rounded p-3 text-sm"
+                      >
+                        <p className="font-medium mb-2">To fix authentication issues:</p>
+                        <ol className="list-decimal list-inside space-y-1 text-[#495057]">
+                          <li>Disable ad blockers (AdBlock, uBlock, etc.) for this site</li>
+                          <li>Add this site to your ad blocker's whitelist</li>
+                          <li>Check if browser shields/protection is blocking requests</li>
+                          <li>Try using incognito/private mode</li>
+                          <li>Disable VPN or proxy if using one</li>
+                          <li>Clear browser cache and cookies</li>
+                        </ol>
+                      </motion.div>
+                    )}
+                    
+                    {!navigator.onLine && (
+                      <div className="bg-[#f8d7da] border border-[#f5c6cb] rounded p-3 text-sm text-[#721c24]">
+                        <WifiOff className="inline w-4 h-4 mr-2" />
+                        No internet connection detected
+                      </div>
+                    )}
                   </div>
 
                   <button
@@ -229,9 +280,20 @@ const AdminLogin = () => {
                 >
                   <h2 className="text-xl font-normal text-[#333] mb-6">Verify OTP</h2>
 
-                  <div className="mb-4 p-3 bg-[#fff3cd] border border-[#ffeeba] rounded">
-                    <Clock className="inline w-4 h-4 mr-2 text-[#856404]" />
-                    We sent a 6-digit code to <span className="font-medium">{pendingAdmin?.email}</span>
+                  <div className="mb-4 space-y-3">
+                    <div className="p-3 bg-[#fff3cd] border border-[#ffeeba] rounded">
+                      <Clock className="inline w-4 h-4 mr-2 text-[#856404]" />
+                      We sent a 6-digit code to <span className="font-medium">{pendingAdmin?.email}</span>
+                    </div>
+                    
+                    {blockingDetected && (
+                      <div className="p-3 bg-[#fff3cd] border border-[#ffeeba] rounded text-sm">
+                        <AlertCircle className="inline w-4 h-4 mr-2 text-[#856404]" />
+                        <span className="text-[#856404]">
+                          If verification fails, please disable ad blockers and try again
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mb-6">

@@ -54,13 +54,13 @@ class EmailService {
     const expiryTime = Date.now() + this.otpExpiryTime;
     const safeEmailId = encodeURIComponent(email); // Use encoded email for ID
 
-    // Prepare the data object
+    // Prepare the data object - avoid serverTimestamp in the object that might be used in fallback
     const dataToSave = {
         otp: hashedOTP,
         email: email, // Store original email
         expiryTime: expiryTime,
         used: false,
-        createdAt: isDemoMode ? new Date() : serverTimestamp(), // Handle timestamp properly
+        createdAt: new Date().toISOString(), // Use ISO string for compatibility
         attempts: 0
     };
 
@@ -122,17 +122,18 @@ class EmailService {
           // Primary operation: Store in Firestore
           async () => {
             const otpRef = doc(db, this.otpCollection, safeEmailId);
-            await setDoc(otpRef, dataToSave);
+            // For Firestore, we can use serverTimestamp if not in demo mode
+            const firestoreData = {
+              ...dataToSave,
+              createdAt: isDemoMode ? new Date().toISOString() : serverTimestamp()
+            };
+            await setDoc(otpRef, firestoreData);
             console.log(`✅ OTP stored in ${isDemoMode ? 'Mock ' : ''}Firestore for ID: ${safeEmailId}`);
             return true;
           },
           // Fallback operation: Store in localStorage
           async () => {
-            const fallbackData = {
-              ...dataToSave,
-              createdAt: new Date().toISOString() // Convert Date to string for localStorage
-            };
-            const success = firestoreFallback.setFallbackData(this.otpCollection, safeEmailId, fallbackData);
+            const success = firestoreFallback.setFallbackData(this.otpCollection, safeEmailId, dataToSave);
             if (success) {
               console.log(`✅ OTP stored in localStorage fallback for ID: ${safeEmailId}`);
               return true;
@@ -195,10 +196,20 @@ class EmailService {
             }
           }
 
-          const otpRefFallback = doc(db, this.otpCollection, safeEmailIdFallback);
-          // Use the SAME dataToSave object which includes the correct timestamp
-          await setDoc(otpRefFallback, dataToSave, { merge: true }); // Use merge just in case
-           console.log(`✅ Fallback OTP stored/merged in ${isDemoMode ? 'Mock ' : ''}Firestore for ID: ${safeEmailIdFallback}`);
+          // Try localStorage fallback first
+          const fallbackSuccess = firestoreFallback.setFallbackData(this.otpCollection, safeEmailIdFallback, dataToSave);
+          if (fallbackSuccess) {
+            console.log(`✅ Fallback OTP stored in localStorage for ID: ${safeEmailIdFallback}`);
+          } else {
+            // If localStorage also fails, try Firestore one more time with safe data
+            const otpRefFallback = doc(db, this.otpCollection, safeEmailIdFallback);
+            const safeData = {
+              ...dataToSave,
+              createdAt: new Date().toISOString() // Ensure safe timestamp
+            };
+            await setDoc(otpRefFallback, safeData, { merge: true });
+            console.log(`✅ Fallback OTP stored/merged in ${isDemoMode ? 'Mock ' : ''}Firestore for ID: ${safeEmailIdFallback}`);
+          }
         } catch (dbError) {
            console.error('❌ Fallback Firestore save failed:', dbError); // Log the specific DB error
            // Even if fallback save fails, return OTP in dev for testing UI flow

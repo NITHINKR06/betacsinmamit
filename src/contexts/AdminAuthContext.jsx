@@ -292,14 +292,15 @@ export const AdminAuthProvider = ({ children }) => {
 
       // Create/update admin user in Firestore with fallback support
       const saveAdminData = async () => {
-        const adminData = {
+        // Prepare base data with safe timestamps for potential fallback
+        const baseAdminData = {
           uid: pendingAdmin.uid,
           email: pendingAdmin.email,
           name: pendingAdmin.name,
           photoURL: pendingAdmin.photoURL,
           role: 'admin',
           verified: true,
-          lastLogin: isDemoMode ? new Date() : serverTimestamp(),
+          lastLogin: new Date().toISOString(),
           loginHistory: [],
           permissions: {
             users: true,
@@ -310,20 +311,32 @@ export const AdminAuthProvider = ({ children }) => {
           }
         };
 
-        const userData = {
+        const baseUserData = {
           uid: pendingAdmin.uid,
           email: pendingAdmin.email,
           name: pendingAdmin.name,
           photoURL: pendingAdmin.photoURL,
           role: 'admin',
-          createdAt: isDemoMode ? new Date() : serverTimestamp(),
-          updatedAt: isDemoMode ? new Date() : serverTimestamp()
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         };
 
         // Try to save to Firestore with fallback
         const saveSuccess = await firestoreFallback.retryWithFallback(
           // Primary operation: Save to Firestore
           async () => {
+            // For Firestore, use serverTimestamp if available
+            const adminData = {
+              ...baseAdminData,
+              lastLogin: isDemoMode ? new Date().toISOString() : serverTimestamp()
+            };
+            
+            const userData = {
+              ...baseUserData,
+              createdAt: isDemoMode ? new Date().toISOString() : serverTimestamp(),
+              updatedAt: isDemoMode ? new Date().toISOString() : serverTimestamp()
+            };
+            
             const adminRef = doc(db, 'admins', pendingAdmin.uid)
             await setDoc(adminRef, adminData, { merge: true })
             
@@ -335,20 +348,9 @@ export const AdminAuthProvider = ({ children }) => {
           },
           // Fallback operation: Save to localStorage
           async () => {
-            // Store admin data in localStorage as fallback
-            const fallbackAdminData = {
-              ...adminData,
-              lastLogin: new Date().toISOString(),
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            };
-            
-            firestoreFallback.setFallbackData('admins', pendingAdmin.uid, fallbackAdminData);
-            firestoreFallback.setFallbackData('users', pendingAdmin.uid, {
-              ...userData,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            });
+            // Store admin data in localStorage as fallback (already has safe timestamps)
+            firestoreFallback.setFallbackData('admins', pendingAdmin.uid, baseAdminData);
+            firestoreFallback.setFallbackData('users', pendingAdmin.uid, baseUserData);
             
             console.log('✅ Admin data saved to localStorage fallback')
             

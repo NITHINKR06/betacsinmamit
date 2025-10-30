@@ -1,11 +1,15 @@
 import { motion } from 'framer-motion'
-import { Calendar, Clock, MapPin, Users } from 'lucide-react'
-import { getEventTypeColor, formatEventDate } from '../../utils/eventUtils'
+import { EVENT_TYPE_COLORS } from '../../constants/eventConstants'
 
-const EventCard = ({ event, index }) => {
-  const handleRegister = () => {
-    // Handle registration logic
-    // console.log('Register for event:', event.id)
+const getEventTypeColor = (type) => {
+  return EVENT_TYPE_COLORS[type] || EVENT_TYPE_COLORS.default
+}
+
+const EventCard = ({ event, index, onClick }) => {
+  const handleClick = () => {
+    if (onClick) {
+      onClick(event)
+    }
   }
 
   return (
@@ -14,8 +18,9 @@ const EventCard = ({ event, index }) => {
         hidden: { opacity: 0, y: 20 },
         visible: { opacity: 1, y: 0 }
       }}
-      whileHover={{ y: -5 }}
-      className="group -mt-10"
+      whileHover={{ y: -5, scale: 1.02 }}
+      className="group -mt-10 cursor-pointer"
+      onClick={handleClick}
     >
       <div className="h-full glass-card rounded-xl overflow-hidden hover:shadow-2xl transition-all duration-300">
         {/* Event Image */}
@@ -40,42 +45,11 @@ const EventCard = ({ event, index }) => {
           )}
         </div>
 
-        {/* Event Details */}
+        {/* Event Name Only */}
         <div className="p-6">
-          <h3 className="text-xl font-bold mb-2 group-hover:text-primary-500 transition-colors">
+          <h3 className="text-xl font-bold group-hover:text-primary-500 transition-colors text-center">
             {event.title}
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
-            {event.description}
-          </p>
-
-          {/* Event Meta Information */}
-          <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-            <div className="flex items-center gap-2">
-              <Calendar size={16} />
-              <span>{formatEventDate(event.date)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock size={16} />
-              <span>{event.time}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <MapPin size={16} />
-              <span>{event.location}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Users size={16} />
-              <span>{event.participants} Participants</span>
-            </div>
-          </div>
-
-          {/* Action Button */}
-          <button 
-            onClick={handleRegister}
-            className="w-full mt-4 btn-primary text-sm"
-          >
-            {event.status === 'upcoming' ? 'Register Now' : 'View Details'}
-          </button>
         </div>
       </div>
     </motion.div>

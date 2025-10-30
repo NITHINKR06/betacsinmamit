@@ -11,6 +11,12 @@ export const EVENT_TYPES = [
 
 // Event type color gradients
 export const EVENT_TYPE_COLORS = {
+  TEAM: 'from-indigo-500 to-purple-500',
+  INDIVIDUAL: 'from-pink-500 to-rose-500',
+  WORKSHOP: 'from-blue-500 to-cyan-500',
+  SEMINAR: 'from-purple-500 to-pink-500',
+  COMPETITION: 'from-orange-500 to-red-500',
+  BOOTCAMP: 'from-green-500 to-teal-500',
   workshop: 'from-blue-500 to-cyan-500',
   seminar: 'from-purple-500 to-pink-500',
   competition: 'from-orange-500 to-red-500',

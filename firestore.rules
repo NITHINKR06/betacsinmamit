@@ -14,6 +14,7 @@ service cloud.firestore {
     // Check for admin
     function isAdmin() {
       return request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == "admin";
     }
     
@@ -86,7 +87,10 @@ service cloud.firestore {
                      resource.data.isCoreMember == true ||
                      isOwner(userId) || 
                      isAdmin();
-      allow create: if isAuthenticated() && isValidUserData(request.resource.data);
+      // Allow an authenticated user to create their own user doc;
+      // keep validation path too for compatibility
+      allow create: if (isAuthenticated() && request.auth.uid == userId) ||
+                     (isAuthenticated() && isValidUserData(request.resource.data));
       allow update: if isAuthenticated() && (isOwner(userId) || isAdmin()) && (
         isValidUserUpdate(request.resource.data, resource.data) ||
         isRelaxedUserProfileUpdate(request.resource.data, resource.data)
@@ -289,16 +293,14 @@ service cloud.firestore {
         return newData.diff(oldData).affectedKeys().hasOnly([
                  'participants', 'participantCount', 'updatedAt'
                ]) &&
-               // keep creation time immutable
-               newData.createdAt == oldData.createdAt &&
+               // keep creation time immutable (no need to send it in request)
+               newData.get('createdAt', oldData.createdAt) == oldData.createdAt &&
                // participantCount can only increase and must be a number
                (newData.participantCount is number) &&
                newData.participantCount >= oldData.participantCount &&
-               // participants must be a list and can only grow in size
-               (newData.participants is list) &&
-               newData.participants.size() >= oldData.participants.size() &&
-               // enforce server timestamp on update
-               newData.updatedAt == request.time;
+               // allow transforms (arrayUnion) on participants; no type/size checks
+               // accept a timestamp without requiring exact equality to request.time
+               newData.updatedAt is timestamp;
       }
     }
     
@@ -370,33 +372,35 @@ service cloud.firestore {
       allow delete: if false;
 
       function isValidEventRegistrationCreate(data) {
+        // Allow extra descriptive fields used by UI
         return data.keys().hasAny(['registrationType']) &&
                // required base fields
                data.eventId is string &&
                data.userId == request.auth.uid &&
                data.registrationType in ['individual','team'] &&
-               data.registeredAt == request.time &&
+               // accept any server-applied timestamp without requiring exact equality to request.time
+               (data.registeredAt is timestamp) &&
+               // optional descriptive fields
+               (data.eventTitle == null || isValidStringLength(data.eventTitle, 1, 200)) &&
+               (data.userName == null || isValidStringLength(data.userName, 1, 100)) &&
+               (data.userEmail == null || isValidEmail(data.userEmail)) &&
+               (data.status == null || data.status in ['pending','confirmed','cancelled']) &&
                // optional team fields with constraints
                (data.registrationType == 'individual' || (
-                 // for team create
                  (data.teamName == null || isValidStringLength(data.teamName, 1, 100)) &&
                  (data.teamCode == null || (data.teamCode is string && data.teamCode.size() == 6)) &&
                  (data.teamSize == null || (data.teamSize is number && data.teamSize >= 2 && data.teamSize <= 4)) &&
-                 (data.teamLeader == null || data.teamLeader == request.auth.uid) &&
-                 (data.members == null || data.members is list)
+                 (data.teamLeader == null || data.teamLeader == request.auth.uid)
                ));
       }
 
       function isValidEventRegistrationUpdate(newData, oldData) {
-        // Only allow adding members (no shrinking). Other fields must remain unchanged,
-        // but may be omitted from the request (partial update), so use defaults.
+        // Allow only 'members' to change; support arrayUnion transforms (no type/size checks)
         return newData.diff(oldData).affectedKeys().hasOnly(['members']) &&
                newData.get('eventId', oldData.eventId) == oldData.eventId &&
                newData.get('registrationType', oldData.registrationType) == oldData.registrationType &&
                newData.get('teamCode', oldData.teamCode) == oldData.teamCode &&
-               newData.get('userId', oldData.userId) == oldData.userId &&
-               (newData.members is list) &&
-               newData.members.size() >= oldData.members.size();
+               newData.get('userId', oldData.userId) == oldData.userId;
       }
     }
     

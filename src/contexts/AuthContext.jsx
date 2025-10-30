@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { 
-  signInWithPopup, 
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut, 
   onAuthStateChanged,
   updateProfile 
@@ -50,12 +52,23 @@ export const AuthProvider = ({ children }) => {
     return CORE_MEMBERS[email.toLowerCase()] || null;
   };
 
-  // Sign in with Google
+  // Sign in with Google (popup first, fallback to redirect)
   const signInWithGoogle = async () => {
     setAuthLoading(true)
     try {
-      const result = await signInWithPopup(auth, googleProvider)
-      const user = result.user
+      let user = null
+      try {
+        const result = await signInWithPopup(auth, googleProvider)
+        user = result.user
+      } catch (popupError) {
+        // Popup blocked or COOP policy -> fallback to redirect
+        try {
+          await signInWithRedirect(auth, googleProvider)
+          return // flow will continue in redirect handler below
+        } catch (redirectError) {
+          throw redirectError
+        }
+      }
       
       // Check if user exists in Firestore
       const userRef = doc(db, 'users', user.uid)
@@ -199,6 +212,74 @@ export const AuthProvider = ({ children }) => {
       setAuthLoading(false)
     }
   }
+
+  // Handle redirect result after returning from Google
+  useEffect(() => {
+    const handleRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth)
+        const user = result?.user
+        if (!user) return
+
+        // Ensure user doc exists (same as popup path)
+        const userRef = doc(db, 'users', user.uid)
+        const userSnap = await getDoc(userRef)
+
+        const coreRoleData = getRoleByEmail(user.email)
+        const isCore = isCoreMember(user.email)
+
+        if (!userSnap.exists()) {
+          let userRole = 'member'
+          let roleDetails = null
+          if (isCore && coreRoleData) {
+            userRole = 'coreMember'
+            roleDetails = {
+              position: coreRoleData.role,
+              permissions: coreRoleData.permissions,
+              level: coreRoleData.level,
+              isNMAMIT: isNMAMITEmail(user.email)
+            }
+          }
+
+          const newUserData = {
+            uid: user.uid,
+            email: user.email,
+            name: user.displayName,
+            photoURL: user.photoURL,
+            role: userRole,
+            ...(roleDetails && { roleDetails }),
+            isCoreMember: isCore,
+            joinedAt: serverTimestamp(),
+            membership: {
+              status: isCore ? 'active' : 'inactive',
+              type: isCore ? 'core' : null,
+              expiresAt: null
+            },
+            profile: {
+              phone: '',
+              college: 'NMAMIT',
+              branch: '',
+              year: '',
+              bio: ''
+            },
+            bio: '',
+            branch: '',
+            usn: '',
+            github: '',
+            linkedin: '',
+            phone: '',
+            certificates: [],
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          }
+          await setDoc(userRef, newUserData)
+        }
+      } catch (e) {
+        // ignore when not coming from redirect
+      }
+    }
+    handleRedirect()
+  }, [])
 
   // Sign out
   const logout = async () => {

@@ -89,6 +89,23 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
     return code
   }
 
+  // Ensure we don't collide with an existing team code for the same event
+  const generateUniqueTeamCode = async () => {
+    const registrationsRef = collection(db, 'eventRegistrations')
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = generateTeamCode()
+      const qCode = query(
+        registrationsRef,
+        where('eventId', '==', event.id),
+        where('teamCode', '==', code)
+      )
+      const snap = await getDocs(qCode)
+      if (snap.empty) return code
+    }
+    // Fallback if repeated collisions (extremely unlikely)
+    return generateTeamCode()
+  }
+
   const handleLogin = async () => {
     try {
       await signInWithGoogle()
@@ -140,8 +157,10 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
           userId: user.uid,
           name: user.name,
           email: user.email,
-          registeredAt: serverTimestamp()
-        })
+          // serverTimestamp is not allowed inside arrays; use client timestamp
+          registeredAt: new Date()
+        }),
+        updatedAt: serverTimestamp()
       })
 
       toast.success('Successfully registered for the event!')
@@ -155,6 +174,10 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
   }
 
   const handleCreateTeam = async () => {
+    if (!user) {
+      toast.error('Please login first')
+      return
+    }
     if (!teamName.trim()) {
       toast.error('Please enter a team name')
       return
@@ -169,7 +192,7 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
 
     setLoading(true)
     try {
-      const code = generateTeamCode()
+      const code = await generateUniqueTeamCode()
 
       await addDoc(collection(db, 'eventRegistrations'), {
         eventId: event.id,
@@ -187,7 +210,8 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
           name: user.name,
           email: user.email,
           role: 'leader',
-          joinedAt: serverTimestamp()
+          // serverTimestamp is not allowed inside arrays; use client timestamp
+          joinedAt: new Date()
         }],
         status: 'pending',
         registeredAt: serverTimestamp()
@@ -198,7 +222,8 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
       setShowTeamForm(false)
     } catch (error) {
       console.error('Team creation error:', error)
-      toast.error('Failed to create team. Please try again.')
+      const message = (error && (error.message || error.code)) ? error.message || error.code : 'Failed to create team. Please try again.'
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -258,7 +283,8 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
           name: user.name,
           email: user.email,
           role: 'member',
-          joinedAt: serverTimestamp()
+          // serverTimestamp is not allowed inside arrays; use client timestamp
+          joinedAt: new Date()
         })
       })
 
@@ -272,13 +298,14 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
           name: user.name,
           email: user.email,
           role: 'member',
-          joinedAt: serverTimestamp()
+          joinedAt: new Date()
         }]
       })
       setShowJoinTeamForm(false)
     } catch (error) {
       console.error('Join team error:', error)
-      toast.error('Failed to join team. Please try again.')
+      const message = (error && (error.message || error.code)) ? error.message || error.code : 'Failed to join team. Please try again.'
+      toast.error(message)
     } finally {
       setLoading(false)
     }

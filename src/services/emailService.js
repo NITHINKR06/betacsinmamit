@@ -1,6 +1,6 @@
 /**
  * Email Service for Frontend
- * Handles OTP email sending directly through EmailJS SMTP service
+ * Handles OTP email sending directly through Web3Forms service
  * Works without backend - sends emails directly from the browser
  */
 
@@ -13,22 +13,16 @@ import {
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import crypto from 'crypto-js'
-import emailjs from '@emailjs/browser'
-import { EMAILJS_CONFIG, validateEmailJSConfig, createOTPEmailParams } from '../config/emailjs'
+import { WEB3FORMS_CONFIG, isWeb3FormsConfigured } from '../config/web3forms'
 
 class EmailService {
   constructor() {
-    // Initialize EmailJS with public key
-    if (EMAILJS_CONFIG.PUBLIC_KEY) {
-      emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY)
-    }
-    
     // OTP configuration
     this.otpCollection = 'adminOTPs'
     this.otpExpiryTime = 10 * 60 * 1000 // 10 minutes
     
-    // Validate EmailJS configuration on initialization
-    this.isConfigured = validateEmailJSConfig()
+    // Validate Web3Forms configuration on initialization
+    this.isConfigured = isWeb3FormsConfigured()
   }
 
   /**
@@ -46,30 +40,19 @@ class EmailService {
   }
 
   /**
-   * Send OTP email using EmailJS SMTP Service
+   * Send OTP email via Web3Forms
    * This sends emails directly from the browser without backend
    */
   async sendOTPEmail(email, name) {
     try {
       // Debug: Log configuration status
-      console.log('📧 EmailJS Configuration Check:')
-      console.log('SERVICE_ID:', EMAILJS_CONFIG.SERVICE_ID ? '✅ Set' : '❌ Missing')
-      console.log('OTP_TEMPLATE_ID:', EMAILJS_CONFIG.OTP_TEMPLATE_ID ? '✅ Set' : '❌ Missing')
-      console.log('PUBLIC_KEY:', EMAILJS_CONFIG.PUBLIC_KEY ? '✅ Set' : '❌ Missing')
+      console.log('📧 Web3Forms Configuration Check:')
+      console.log('ACCESS_KEY:', WEB3FORMS_CONFIG.ACCESS_KEY ? '✅ Set' : '❌ Missing')
       console.log('Is Configured:', this.isConfigured)
       
-      // Check if EmailJS is configured
+      // Check if Web3Forms is configured
       if (!this.isConfigured) {
-        // console.warn('⚠️ EmailJS not configured. Please set up environment variables.')
-        // console.warn('Missing configuration:', {
-        //   SERVICE_ID: !EMAILJS_CONFIG.SERVICE_ID,
-        //   OTP_TEMPLATE_ID: !EMAILJS_CONFIG.OTP_TEMPLATE_ID,
-        //   PUBLIC_KEY: !EMAILJS_CONFIG.PUBLIC_KEY
-        // })
-        // console.warn('Please check your .env.local file has these variables:')
-        // console.warn('VITE_EMAILJS_SERVICE_ID=your_service_id')
-        // console.warn('VITE_EMAILJS_OTP_TEMPLATE_ID=your_template_id')
-        // console.warn('VITE_EMAILJS_PUBLIC_KEY=your_public_key')
+        // console.warn('⚠️ Web3Forms not configured. Please set VITE_WEB3FORMS_ACCESS_KEY')
         
         // In development, still generate and return OTP for testing
         if (import.meta.env.DEV) {
@@ -101,8 +84,6 @@ class EmailService {
       const expiryTime = Date.now() + this.otpExpiryTime
 
       // console.log('📧 Attempting to send OTP email to:', email)
-      // console.log('Using EmailJS Service ID:', EMAILJS_CONFIG.SERVICE_ID)
-      // console.log('Using Template ID:', EMAILJS_CONFIG.OTP_TEMPLATE_ID)
 
       // Store OTP in Firestore (hashed for security)
       const otpRef = doc(db, this.otpCollection, email)
@@ -116,71 +97,38 @@ class EmailService {
       })
       // console.log('✅ OTP stored in Firestore')
 
-      // Prepare email parameters for EmailJS template
-      const templateParams = createOTPEmailParams(email, name, otp)
-      console.log('📧 Template parameters prepared:')
-      console.log('  Email fields:', {
-        to_email: templateParams.to_email,
-        user_email: templateParams.user_email,
-        email: templateParams.email,
-        recipient_email: templateParams.recipient_email
-      })
-      console.log('  Name:', templateParams.to_name)
-      console.log('  OTP: ******')
-      console.log('  Full params:', { ...templateParams, otp_code: '******', otp: '******', code: '******' })
-
-      // Send email using EmailJS
-      console.log('📧 Sending email via EmailJS...')
-      const response = await emailjs.send(
-        EMAILJS_CONFIG.SERVICE_ID,
-        EMAILJS_CONFIG.OTP_TEMPLATE_ID,
-        templateParams,
-        EMAILJS_CONFIG.PUBLIC_KEY
+      // Prepare Web3Forms form data
+      const formData = new FormData()
+      formData.append('access_key', WEB3FORMS_CONFIG.ACCESS_KEY)
+      formData.append('subject', 'Your OTP Code')
+      formData.append('name', name || 'User')
+      formData.append('email', email)
+      formData.append(
+        'message',
+        `Hello ${name || ''},\n\nYour OTP code is: ${otp}\nThis code is valid for 10 minutes.\n\nIf you did not request this, you can ignore this email.\n\nThanks,\nCSI NMAMIT`
       )
+      // Optional: let recipient reply to a support address (depends on template)
+      formData.append('replyto', 'csidatabasenmamit@gmail.com')
 
-      // console.log('📧 EmailJS Response:', response)
+      console.log('📧 Sending email via Web3Forms...')
+      const response = await fetch(WEB3FORMS_CONFIG.ENDPOINT, {
+        method: 'POST',
+        body: formData
+      })
 
-      if (response.status === 200) {
-        // console.log(`✅ OTP email sent successfully to ${email}`)
-        // console.log('Check your email inbox and spam folder')
-        
-        // Return success without OTP in production
+      const result = await response.json().catch(() => ({}))
+
+      if (response.ok && result.success) {
         if (import.meta.env.PROD) {
           return { success: true }
         }
-        
-        // In development, also return the OTP for testing
-        // console.log(`🔐 Development OTP for ${email}: ${otp}`)
         return { success: true, otp: import.meta.env.DEV ? otp : undefined }
-      } else {
-        throw new Error(`EmailJS failed with status: ${response.status}`)
       }
+
+      throw new Error(result.message || `Web3Forms failed with status: ${response.status}`)
     } catch (error) {
       // console.error('❌ Error sending OTP email:', error)
-      // console.error('Error details:', {
-      //   message: error.message,
-      //   text: error.text,
-      //   status: error.status
-      // })
-      
-      // Check for common EmailJS errors
-      if (error.text?.includes('The Public Key is invalid')) {
-        // console.error('❌ Invalid EmailJS Public Key. Please check your VITE_EMAILJS_PUBLIC_KEY in .env.local')
-      } else if (error.text?.includes('The Service ID is invalid')) {
-        // console.error('❌ Invalid EmailJS Service ID. Please check your VITE_EMAILJS_SERVICE_ID in .env.local')
-      } else if (error.text?.includes('The Template ID is invalid')) {
-        // console.error('❌ Invalid EmailJS Template ID. Please check your VITE_EMAILJS_OTP_TEMPLATE_ID in .env.local')
-      } else if (error.text?.includes('The daily quota')) {
-        // console.error('❌ EmailJS daily quota exceeded. Please upgrade your plan or wait until tomorrow.')
-      } else if (error.status === 412 || error.text?.includes('Precondition Failed')) {
-        console.warn('⚠️ EmailJS 412 Precondition Failed: Your domain is not authorized in EmailJS.')
-        console.warn('   Add this origin in EmailJS → Account → Domains:', window.location.origin)
-        console.warn('   Also ensure your EmailJS template is published and service is connected.')
-        // Surface actionable message to UI consumers
-        const origin = typeof window !== 'undefined' ? window.location.origin : 'your site origin'
-        error.message = `Email service blocked this origin. Add ${origin} in EmailJS → Account → Domains, then retry.`
-      }
-      
+
       // If EmailJS fails in development, still return OTP for testing
       if (import.meta.env.DEV) {
         // console.warn('⚠️ Email sending failed, but returning OTP for development testing')
@@ -208,8 +156,7 @@ class EmailService {
   }
 
   /**
-   * Send custom email using EmailJS
-   * Can be used for other email types in the future
+   * Send custom email via Web3Forms (generic helper)
    */
   async sendCustomEmail(templateId, templateParams) {
     try {
@@ -217,17 +164,19 @@ class EmailService {
         throw new Error('Email service not configured')
       }
 
-      const response = await emailjs.send(
-        EMAILJS_CONFIG.SERVICE_ID,
-        templateId,
-        templateParams,
-        EMAILJS_CONFIG.PUBLIC_KEY
-      )
+      const formData = new FormData()
+      formData.append('access_key', WEB3FORMS_CONFIG.ACCESS_KEY)
+      // Map common fields if provided
+      if (templateParams?.subject) formData.append('subject', templateParams.subject)
+      if (templateParams?.to_name) formData.append('name', templateParams.to_name)
+      if (templateParams?.to_email) formData.append('email', templateParams.to_email)
+      const message = templateParams?.message || 'Message from application'
+      formData.append('message', message)
 
-      return {
-        success: response.status === 200,
-        response: response
-      }
+      const response = await fetch(WEB3FORMS_CONFIG.ENDPOINT, { method: 'POST', body: formData })
+      const result = await response.json().catch(() => ({}))
+
+      return { success: response.ok && result.success, response: result }
     } catch (error) {
       // console.error('Error sending custom email:', error)
       throw error

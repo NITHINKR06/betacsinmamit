@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { getFirestore, initializeFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 
 // Check if Firebase config is available
@@ -29,7 +29,15 @@ if (hasFirebaseConfig) {
   // Initialize Firebase services
   auth = getAuth(app)
   googleProvider = new GoogleAuthProvider()
-  db = getFirestore(app)
+  // Initialize Firestore with networking settings to reduce streaming/terminate noise
+  try {
+    db = initializeFirestore(app, {
+      experimentalAutoDetectLongPolling: true,
+      useFetchStreams: false
+    })
+  } catch (e) {
+    db = getFirestore(app)
+  }
   storage = getStorage(app)
   isDemoMode = false
 

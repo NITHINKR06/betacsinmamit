@@ -108,7 +108,7 @@ if (hasFirebaseConfig) {
   // Initialize Real Firestore with networking settings
   try {
     db = initializeFirestore(app, {
-      experimentalAutoDetectLongPolling: true,
+      experimentalAutoDetectLongPolling: false, // <-- Set this to false
       useFetchStreams: false,
       experimentalForceLongPolling: true, // Force long polling to avoid WebChannel issues
       cacheSizeBytes: 1048576 // 1 MB cache

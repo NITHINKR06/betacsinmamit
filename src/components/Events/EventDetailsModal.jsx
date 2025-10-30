@@ -229,8 +229,20 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
       setUserTeam({ teamName: teamName.trim(), teamCode: code, members: [] })
       setShowTeamForm(false)
     } catch (error) {
+      // Enhanced error logging for easier debugging
       console.error('Team creation error:', error)
-      const message = (error && (error.message || error.code)) ? error.message || error.code : 'Failed to create team. Please try again.'
+      let message = 'Failed to create team. Please try again.';
+      if (error) {
+        if (typeof error === 'object') {
+          try {
+            message = JSON.stringify(error);
+          } catch (e) {
+            message = error.message || error.code || message;
+          }
+        } else {
+          message = String(error);
+        }
+      }
       toast.error(message)
     } finally {
       setLoading(false)
@@ -311,8 +323,20 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
       })
       setShowJoinTeamForm(false)
     } catch (error) {
+      // Enhanced error logging for easier debugging
       console.error('Join team error:', error)
-      const message = (error && (error.message || error.code)) ? error.message || error.code : 'Failed to join team. Please try again.'
+      let message = 'Failed to join team. Please try again.';
+      if (error) {
+        if (typeof error === 'object') {
+          try {
+            message = JSON.stringify(error);
+          } catch (e) {
+            message = error.message || error.code || message;
+          }
+        } else {
+          message = String(error);
+        }
+      }
       toast.error(message)
     } finally {
       setLoading(false)

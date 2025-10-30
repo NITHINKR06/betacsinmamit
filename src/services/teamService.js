@@ -115,6 +115,65 @@ export const fetchCoreMembers = async () => {
 }
 
 /**
+ * Fetch all members (core and non-core) from Firestore
+ * Publicly readable for the Team page without authentication
+ */
+export const fetchAllMembers = async () => {
+  try {
+    if (db) {
+      try {
+        const usersRef = collection(db, 'users')
+        const allUsersSnapshot = await getDocs(usersRef)
+        const allMembers = []
+        allUsersSnapshot.forEach((docSnap) => {
+          const data = docSnap.data()
+          const member = {
+            id: docSnap.id,
+            name: data.name || 'Unknown',
+            role: getUserRole(data),
+            usn: data.profile?.usn || data.usn || '',
+            branch: data.profile?.branch || '',
+            year: data.profile?.year || '',
+            linkedin: data.profile?.linkedin || '#',
+            github: data.profile?.github || '#',
+            imageSrc: data.photoURL || '/default-avatar.png',
+            skills: data.profile?.skills || [],
+            bio: data.profile?.bio || '',
+            phone: data.profile?.phone || '',
+            email: data.email || '',
+            isCoreMember: data.role === 'coreMember' || data.isCoreMember === true || false,
+            ...data
+          }
+          allMembers.push(member)
+        })
+        if (allMembers.length > 0) {
+          return sortMembersByRole(allMembers)
+        }
+      } catch (firestoreError) {
+        console.warn('Firestore not available, using fallback data:', firestoreError.message)
+      }
+    }
+
+    // Fallback to static team data
+    const studentData = teamData.studentTeamData || []
+    return studentData.map((member, index) => ({
+      ...member,
+      id: member.id || `student-${index}`
+    })).sort((a, b) => {
+      if (a.order && b.order) return a.order - b.order
+      return sortMembersByRole([a, b])
+    })
+  } catch (error) {
+    console.error('Error in fetchAllMembers:', error)
+    try {
+      return teamData.studentTeamData || []
+    } catch {
+      return []
+    }
+  }
+}
+
+/**
  * Sort members by role hierarchy
  * @param {Array} members - Array of team members
  * @returns {Array} Sorted array of team members

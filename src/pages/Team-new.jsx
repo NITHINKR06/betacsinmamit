@@ -7,7 +7,7 @@ import TeamTabs from '../components/Team/TeamTabs'
 import FacultyGrid from '../components/Team/FacultyGrid'
 import StudentGrid from '../components/Team/StudentGrid'
 import MemberModal from '../components/Team/MemberModal'
-import { fetchCoreMembers, fetchFacultyMembers } from '../services/teamService'
+import { fetchAllMembers, fetchFacultyMembers } from '../services/teamService'
 import teamData from '../data/teamData.json'
 import toast from 'react-hot-toast'
 
@@ -30,7 +30,7 @@ const Team = () => {
       // Fetch both faculty and student data in parallel
       const [facultyData, studentData] = await Promise.all([
         fetchFacultyMembers(),
-        fetchCoreMembers()
+        fetchAllMembers()
       ])
       
       setFaculty(facultyData)
@@ -49,19 +49,12 @@ const Team = () => {
       }
     } catch (err) {
       console.log('Error fetching team data:', err.message)
-      
-      // Load fallback data from JSON
-      try {
-        console.log('Using static fallback data from teamData.json')
-        setFaculty(teamData.facultyData || [])
-        setStudents(teamData.studentTeamData || [])
-        setError(null) // Clear error since fallback succeeded
-        toast.info('Showing cached team data', { duration: 3000 })
-      } catch (fallbackError) {
-        console.error('Failed to load fallback data:', fallbackError)
-        setError('Failed to load team data. Please try again.')
-        toast.error('Failed to load team data')
-      }
+      // Always fall back to bundled static data without surfacing an error
+      console.log('Using static fallback data from teamData.json')
+      setFaculty(Array.isArray(teamData.facultyData) ? teamData.facultyData : [])
+      setStudents(Array.isArray(teamData.studentTeamData) ? teamData.studentTeamData : [])
+      setError(null)
+      toast.success('Loaded cached team data')
     } finally {
       setLoading(false)
     }

@@ -3,6 +3,7 @@ import Tilt from 'react-parallax-tilt'
 import { Linkedin, Github, Star } from 'lucide-react'
 
 const StudentCard = ({ member, index, onClick }) => {
+  const displayRole = member?.roleDetails?.position || member?.role || 'Member'
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -27,11 +28,11 @@ const StudentCard = ({ member, index, onClick }) => {
             {member.usn && (
               <p className="text-xs text-gray-400 uppercase tracking-wider">{member.usn}</p>
             )}
-            <p className="text-sm text-yellow-400 font-medium mt-1">{member.role}</p>
+            <p className="text-sm text-yellow-400 font-medium mt-1">{displayRole}</p>
           </div>
 
           {/* President Badge */}
-          {member.role === 'President' && (
+          {displayRole === 'President' && (
             <div className="absolute top-4 right-4 bg-yellow-400 p-2 rounded-full shadow-md">
               <Star className="text-white fill-white" size={18} />
             </div>
@@ -45,7 +46,7 @@ const StudentCard = ({ member, index, onClick }) => {
             {member.usn && (
               <p className="text-sm text-gray-400 uppercase tracking-wider mb-2">{member.usn}</p>
             )}
-            <p className="text-sm text-yellow-400 font-medium mb-3">{member.role}</p>
+            <p className="text-sm text-yellow-400 font-medium mb-3">{displayRole}</p>
             
             {/* Branch + Year */}
             {(member.branch || member.year) && (

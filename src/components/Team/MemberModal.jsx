@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Mail, Phone, Linkedin, Github, GraduationCap, Contact } from "lucide-react";
 
 const MemberModal = ({ member, onClose }) => {
   if (!member) return null;
@@ -59,9 +59,22 @@ const MemberModal = ({ member, onClose }) => {
               <p className="text-lg font-semibold mb-2 text-primary-200">
                 About
               </p>
-              <p className="text-sm leading-relaxed">
-                {member.branch} • {member.year}
-              </p>
+              <div className="space-y-2 text-sm leading-relaxed">
+                {(member.branch || member.year) && (
+                  <p className="flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-primary-300" />
+                    <span>
+                      {member.branch}{member.branch && member.year ? ' • ' : ''}{member.year}
+                    </span>
+                  </p>
+                )}
+                {member.usn && (
+                  <p className="flex items-center gap-2 text-gray-400">
+                    <Contact className="w-4 h-4" />
+                    <span>USN: {member.usn}</span>
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Skills */}
@@ -69,21 +82,95 @@ const MemberModal = ({ member, onClose }) => {
               <p className="text-lg font-semibold mb-3 text-primary-200">
                 Skills
               </p>
-              <div className="flex flex-wrap gap-3">
-                {member.skills.map((skill) => (
-                  <motion.span
-                    key={skill}
-                    whileHover={{
-                      scale: 1.1,
-                      boxShadow: "0 0 12px rgba(59,130,246,0.6)",
-                    }}
-                    className="px-4 py-1.5 text-sm rounded-full bg-gradient-to-r from-primary-500/20 to-cyber-blue/20 text-primary-100 border border-white/10 shadow-sm cursor-default"
-                  >
-                    {skill}
-                  </motion.span>
-                ))}
-              </div>
+              {Array.isArray(member.skills) && member.skills.length > 0 ? (
+                <div className="flex flex-wrap gap-3">
+                  {member.skills.map((skill) => (
+                    <motion.span
+                      key={skill}
+                      whileHover={{
+                        scale: 1.1,
+                        boxShadow: "0 0 12px rgba(59,130,246,0.6)",
+                      }}
+                      className="px-4 py-1.5 text-sm rounded-full bg-gradient-to-r from-primary-500/20 to-cyber-blue/20 text-primary-100 border border-white/10 shadow-sm cursor-default"
+                    >
+                      {skill}
+                    </motion.span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400">No skills added yet.</p>
+              )}
             </div>
+
+            {/* Bio */}
+            {member.bio && (
+              <div>
+                <p className="text-lg font-semibold mb-2 text-primary-200">Bio</p>
+                <p className="text-sm text-gray-300 leading-relaxed">{member.bio}</p>
+              </div>
+            )}
+
+            {/* Contact */}
+            {(member.email || member.phone) && (
+              <div className="text-gray-300">
+                <p className="text-lg font-semibold mb-2 text-primary-200">Contact</p>
+                <div className="space-y-1 text-sm">
+                  {member.email && (
+                    <p className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-primary-300" />
+                      <a
+                        href={`mailto:${member.email}`}
+                        className="text-primary-300 hover:text-primary-200 underline-offset-2 hover:underline"
+                      >
+                        {member.email}
+                      </a>
+                    </p>
+                  )}
+                  {member.phone && (
+                    <p className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-primary-300" />
+                      <a
+                        href={`tel:${member.phone}`}
+                        className="text-primary-300 hover:text-primary-200 underline-offset-2 hover:underline"
+                      >
+                        {member.phone}
+                      </a>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Socials */}
+            {(member.linkedin || member.github) && (
+              <div>
+                <p className="text-lg font-semibold mb-2 text-primary-200">Socials</p>
+                <div className="flex gap-6 text-sm">
+                  {member.linkedin && member.linkedin !== '#' && (
+                    <a
+                      href={member.linkedin}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 text-primary-300 hover:text-primary-200 underline-offset-2 hover:underline"
+                    >
+                      <Linkedin className="w-4 h-4" />
+                      <span>LinkedIn</span>
+                    </a>
+                  )}
+                  {member.github && member.github !== '#' && (
+                    <a
+                      href={member.github}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 text-primary-300 hover:text-primary-200 underline-offset-2 hover:underline"
+                    >
+                      <Github className="w-4 h-4" />
+                      <span>GitHub</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </motion.div>
       </motion.div>

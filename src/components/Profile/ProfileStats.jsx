@@ -1,10 +1,25 @@
+import { useMemo } from 'react'
 import { Trophy, FileText, Award } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
 
 const ProfileStats = () => {
+  const { user } = useAuth()
+
+  const { eventsCount, certificatesCount, awardsCount } = useMemo(() => {
+    const eventsCount = (user?.events && Array.isArray(user.events) && user.events.length) ||
+      (user?.participation && Array.isArray(user.participation) && user.participation.length) || 0
+
+    const certificatesCount = (user?.certificates && Array.isArray(user.certificates) && user.certificates.length) || 0
+
+    const awardsCount = (user?.awards && Array.isArray(user.awards) && user.awards.length) || 0
+
+    return { eventsCount, certificatesCount, awardsCount }
+  }, [user])
+
   const stats = [
-    { icon: Trophy, value: 5, label: 'Events', color: 'text-yellow-500' },
-    { icon: FileText, value: 3, label: 'Certificates', color: 'text-blue-500' },
-    { icon: Award, value: 2, label: 'Awards', color: 'text-purple-500' }
+    { icon: Trophy, value: eventsCount, label: 'Events', color: 'text-yellow-500' },
+    { icon: FileText, value: certificatesCount, label: 'Certificates', color: 'text-blue-500' },
+    { icon: Award, value: awardsCount, label: 'Awards', color: 'text-purple-500' }
   ]
 
   return (

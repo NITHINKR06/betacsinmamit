@@ -79,6 +79,7 @@ function AppContent() {
       <div className="min-h-screen bg-white dark:bg-gray-950 transition-colors duration-300">
         <Toaster
           position="bottom-right"
+          containerStyle={{ top: 80, zIndex: 9999 }}
           toastOptions={{
             duration: 2000,
             style: {

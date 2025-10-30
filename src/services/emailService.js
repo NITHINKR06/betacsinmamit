@@ -11,7 +11,7 @@ import {
   updateDoc,
   serverTimestamp 
 } from 'firebase/firestore'
-import { db } from '../config/firebase'
+import { db, isDemoMode } from '../config/firebase'
 import crypto from 'crypto-js'
 import { WEB3FORMS_CONFIG, isWeb3FormsConfigured } from '../config/web3forms'
 
@@ -45,6 +45,7 @@ class EmailService {
    */
   async sendOTPEmail(email, name) {
     try {
+      const timestamp = isDemoMode ? new Date() : serverTimestamp() // <-- ADD THIS LINE
       // Debug: Log configuration status
       console.log('📧 Web3Forms Configuration Check:')
       console.log('ACCESS_KEY:', WEB3FORMS_CONFIG.ACCESS_KEY ? '✅ Set' : '❌ Missing')
@@ -69,7 +70,7 @@ class EmailService {
             email: email,
             expiryTime: expiryTime,
             used: false,
-            createdAt: serverTimestamp(),
+            createdAt: timestamp,
             attempts: 0
           })
           
@@ -96,7 +97,7 @@ class EmailService {
         email: email,
         expiryTime: expiryTime,
         used: false,
-        createdAt: serverTimestamp(),
+        createdAt: timestamp,
         attempts: 0
       })
       // console.log('✅ OTP stored in Firestore')
@@ -149,7 +150,7 @@ class EmailService {
           email: email,
           expiryTime: expiryTime,
           used: false,
-          createdAt: serverTimestamp(),
+          createdAt: timestamp,
           attempts: 0
         })
         

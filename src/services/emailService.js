@@ -173,7 +173,12 @@ class EmailService {
       } else if (error.text?.includes('The daily quota')) {
         // console.error('❌ EmailJS daily quota exceeded. Please upgrade your plan or wait until tomorrow.')
       } else if (error.status === 412 || error.text?.includes('Precondition Failed')) {
-        // console.warn('⚠️ EmailJS 412 Precondition Failed: Domain not authorized in EmailJS. Add current origin in EmailJS Dashboard → Account → Domains.')
+        console.warn('⚠️ EmailJS 412 Precondition Failed: Your domain is not authorized in EmailJS.')
+        console.warn('   Add this origin in EmailJS → Account → Domains:', window.location.origin)
+        console.warn('   Also ensure your EmailJS template is published and service is connected.')
+        // Surface actionable message to UI consumers
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'your site origin'
+        error.message = `Email service blocked this origin. Add ${origin} in EmailJS → Account → Domains, then retry.`
       }
       
       // If EmailJS fails in development, still return OTP for testing

@@ -71,6 +71,7 @@ export const createOTPEmailParams = (email, name, otp) => {
     // --- Variables for your template ---
     passcode: otp, // Matches {{passcode}}
     time: timeString, // Matches {{time}}
+    valid_time: '10 minutes', // Matches {{valid_time}} if used in template
     
     // --- Keep old aliases just in case ---
     otp_code: otp,
@@ -78,7 +79,10 @@ export const createOTPEmailParams = (email, name, otp) => {
     code: otp,
     // --- End Changes ---
 
-    from_name: 'CSI NMAMIT Admin'
+    from_name: 'CSI NMAMIT Admin',
+
+    // helpful context (ignored by template if not used)
+    site_origin: typeof window !== 'undefined' ? window.location.origin : ''
   }
   return templateParams
 }

@@ -71,7 +71,11 @@ export const AdminAuthProvider = ({ children }) => {
   const [authLoading, setAuthLoading] = useState(false)
   const [otpSent, setOtpSent] = useState(false)
   const [sessionExpiry, setSessionExpiry] = useState(null)
-  const [pendingAdmin, setPendingAdmin] = useState(null)
+  const [pendingAdmin, setPendingAdmin] = useState(() => {
+    // Restore pendingAdmin from sessionStorage on mount
+    const stored = sessionStorage.getItem('pendingAdmin')
+    return stored ? JSON.parse(stored) : null
+  })
 
   // Generate OTP
   // const generateOTP = () => {
@@ -83,6 +87,16 @@ export const AdminAuthProvider = ({ children }) => {
     // If no whitelist provided, allow all (useful in development)
     if (ADMIN_WHITELIST.length === 0) return true
     return ADMIN_WHITELIST.includes(email.toLowerCase())
+  }
+
+  // Helper function to set pending admin with persistence
+  const setPendingAdminWithPersistence = (adminData) => {
+    if (adminData) {
+      sessionStorage.setItem('pendingAdmin', JSON.stringify(adminData))
+    } else {
+      sessionStorage.removeItem('pendingAdmin')
+    }
+    setPendingAdmin(adminData)
   }
 
   // Sign in with Google (Step 1)
@@ -101,8 +115,8 @@ export const AdminAuthProvider = ({ children }) => {
               toast.error('Unauthorized: You are not an admin')
               return null
             }
-            // Prepare OTP step
-            setPendingAdmin({
+            // Prepare OTP step with persistence
+            setPendingAdminWithPersistence({
               uid: user.uid,
               email: user.email,
               name: user.displayName,
@@ -131,35 +145,59 @@ export const AdminAuthProvider = ({ children }) => {
   useEffect(() => {
     const handleRedirect = async () => {
       try {
-        if (!auth) return
-        
-        const result = await getRedirectResult(auth)
-        const user = result?.user
-        if (!user) return
-
-        // Check whitelist
-        if (!isWhitelistedAdmin(user.email)) {
-          await signOut(auth)
-          toast.error('Unauthorized: You are not an admin')
-          return
+        if (!auth) {
+          return;
         }
 
-        // Store pending admin
-        setPendingAdmin({
+        const result = await getRedirectResult(auth);
+        const user = result?.user;
+
+        if (!user) {
+          // No redirect result, check if we have a pending admin from storage
+          const storedPending = sessionStorage.getItem('pendingAdmin')
+          if (storedPending) {
+            const pendingData = JSON.parse(storedPending)
+            // Check if OTP was already sent (to avoid resending)
+            const otpSentFlag = sessionStorage.getItem('otpSentForPending')
+            if (!otpSentFlag) {
+              // OTP not sent yet, send it now
+              await sendOTPEmail(pendingData.email, pendingData.name)
+              sessionStorage.setItem('otpSentForPending', 'true')
+            }
+          }
+          return;
+        }
+
+        // Check whitelist
+        const isAdmin = isWhitelistedAdmin(user.email);
+        if (!isAdmin) {
+          await signOut(auth);
+          sessionStorage.removeItem('pendingAdmin')
+          sessionStorage.removeItem('otpSentForPending')
+          toast.error('Unauthorized: You are not an admin');
+          return;
+        }
+
+        // Store pending admin with persistence
+        const adminData = {
           uid: user.uid,
           email: user.email,
           name: user.displayName,
           photoURL: user.photoURL
-        })
+        }
+        setPendingAdminWithPersistence(adminData);
 
         // Send OTP via EmailJS
-        await sendOTPEmail(user.email, user.displayName || 'Admin')
+        await sendOTPEmail(user.email, user.displayName || 'Admin');
+        sessionStorage.setItem('otpSentForPending', 'true')
+
       } catch (e) {
-        toast.error('Error handling sign-in redirect')
+        console.error("Error in handleRedirect:", e);
+        toast.error('Error handling sign-in redirect');
       }
-    }
-    handleRedirect()
-  }, [])
+    };
+    handleRedirect();
+  }, []); // Keep dependency array empty
 
 
   // Send OTP Email (Step 2) - Uses EmailJS only
@@ -248,7 +286,9 @@ export const AdminAuthProvider = ({ children }) => {
         verified: true
       })
 
-      setPendingAdmin(null)
+      // Clear pending admin state and sessionStorage
+      setPendingAdminWithPersistence(null)
+      sessionStorage.removeItem('otpSentForPending')
       setOtpSent(false)
       
       toast.success('Admin login successful!')
@@ -279,10 +319,11 @@ export const AdminAuthProvider = ({ children }) => {
     try {
       await signOut(auth)
       setAdminUser(null)
-      setPendingAdmin(null)
+      setPendingAdminWithPersistence(null)
       setOtpSent(false)
       setSessionExpiry(null)
       localStorage.removeItem('adminSession')
+      sessionStorage.removeItem('otpSentForPending')
       toast.success('Admin logged out successfully')
     } catch (error) {
       // console.error('Error logging out:', error)

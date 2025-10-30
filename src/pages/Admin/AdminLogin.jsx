@@ -30,7 +30,17 @@ const AdminLogin = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [resendTimer, setResendTimer] = useState(0)
   const [attempts, setAttempts] = useState(0)
+  const [checkingRedirect, setCheckingRedirect] = useState(true)
   const maxAttempts = 3
+
+  // Check for redirect result on mount
+  useEffect(() => {
+    // Give some time for redirect result to be processed
+    const timer = setTimeout(() => {
+      setCheckingRedirect(false)
+    }, 2000)
+    return () => clearTimeout(timer)
+  }, [])
 
   // Redirect if already logged in
   useEffect(() => {
@@ -120,6 +130,25 @@ const AdminLogin = () => {
 
   // OTP removed
 
+  // Show loading while checking for redirect result
+  if (checkingRedirect && !pendingAdmin) {
+    return (
+      <div className="min-h-screen bg-[#f8f8f8] flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white border border-[#ddd] rounded-lg shadow-sm overflow-hidden">
+            <div className="bg-[#417690] text-white p-4">
+              <h1 className="text-lg font-normal">CSI NMAMIT administration</h1>
+            </div>
+            <div className="p-6 flex flex-col items-center justify-center">
+              <RefreshCw className="w-8 h-8 animate-spin text-[#417690] mb-4" />
+              <p className="text-[#333]">Checking authentication status...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-[#f8f8f8] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -133,7 +162,7 @@ const AdminLogin = () => {
           {/* Content */}
           <div className="p-6">
             <AnimatePresence mode="wait">
-              {(!pendingAdmin ? (
+              {!pendingAdmin ? (
                 // Step 1: Google Sign In
                 <motion.div
                   key="signin"
@@ -244,7 +273,7 @@ const AdminLogin = () => {
                     )}
                   </button>
                 </motion.div>
-              ))}
+              )}
             </AnimatePresence>
           </div>
         </div>

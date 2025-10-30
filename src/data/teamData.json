@@ -5,7 +5,7 @@
       "name": "Dr. Sharadha",
       "role": "Faculty Coordinator",
       "image": "/faculty/sharadha.jpg",
-      "branch": "Computer Science",
+      "department": "Computer Science",
       "email": "sharadha@nmamit.in",
       "linkedin": "#",
       "description": "Leading CSI NMAMIT with passion for technology education"
@@ -15,7 +15,7 @@
       "name": "Prof. Chithra",
       "role": "Technical Advisor",
       "image": "/faculty/chithra.jpg",
-      "branch": "Information Science",
+      "department": "Information Science",
       "email": "chithra@nmamit.in",
       "linkedin": "#",
       "description": "Guiding students in cutting-edge technology projects"
@@ -25,7 +25,7 @@
       "name": "Prof. Sneha",
       "role": "Event Coordinator",
       "image": "/faculty/sneha.jpg",
-      "branch": "Computer Science",
+      "department": "Computer Science",
       "email": "sneha@nmamit.in",
       "linkedin": "#",
       "description": "Organizing impactful technical events and workshops"
@@ -35,7 +35,7 @@
       "name": "Prof. Pratheeksha",
       "role": "Mentor",
       "image": "/faculty/pratheeksha.jpg",
-      "branch": "Information Science",
+      "department": "Information Science",
       "email": "pratheeksha@nmamit.in",
       "linkedin": "#",
       "description": "Mentoring students for competitive programming"

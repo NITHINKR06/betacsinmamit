@@ -7,6 +7,7 @@ import FacultyGrid from '../components/Team/FacultyGrid'
 import StudentGrid from '../components/Team/StudentGrid'
 import MemberModal from '../components/Team/MemberModal'
 import { fetchCoreMembers, fetchFacultyMembers } from '../services/teamService'
+import teamData from '../data/teamData.json'
 import toast from 'react-hot-toast'
 
 const Team = () => {
@@ -45,17 +46,18 @@ const Team = () => {
       }
     } catch (err) {
       console.log('Error fetching team data:', err.message)
-      setError('Failed to load team data. Please try again.')
-      toast.error('Failed to load team data')
       
       // Load fallback data from JSON
       try {
-        const { facultyData, studentTeamData } = await import('../data/teamData.json')
-        setFaculty(facultyData || [])
-        setStudents(studentTeamData || [])
+        console.log('Using static fallback data from teamData.json')
+        setFaculty(teamData.facultyData || [])
+        setStudents(teamData.studentTeamData || [])
+        setError(null) // Clear error since fallback succeeded
         toast.info('Showing cached team data', { duration: 3000 })
       } catch (fallbackError) {
         console.error('Failed to load fallback data:', fallbackError)
+        setError('Failed to load team data. Please try again.')
+        toast.error('Failed to load team data')
       }
     } finally {
       setLoading(false)

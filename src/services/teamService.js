@@ -1,6 +1,7 @@
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { CORE_MEMBERS } from '../constants/coreMembers'
+import teamData from '../data/teamData.json'
 
 /**
  * Get role from CORE_MEMBERS constant or Firestore data
@@ -86,67 +87,26 @@ export const fetchCoreMembers = async () => {
       }
     }
     
-    // If Firestore fails or no data found, use CORE_MEMBERS constant as primary source
-    console.log('Using CORE_MEMBERS constant as data source')
-    
-    const coreMembersData = []
-    
-    // Create member objects from CORE_MEMBERS constant
-    Object.entries(CORE_MEMBERS).forEach(([email, memberInfo]) => {
-      coreMembersData.push({
-        id: email.replace(/[@.]/g, '_'), // Create a safe ID from email
-        email: email,
-        name: memberInfo.name || email.split('@')[0], // Use email prefix as fallback name
-        role: 'coreMember',
-        isCoreMember: true,
-        roleDetails: {
-          position: memberInfo.role,
-          permissions: memberInfo.permissions,
-          level: memberInfo.level
-        },
-        photoURL: '/default-avatar.png',
-        profile: {
-          role: memberInfo.role,
-          branch: '',
-          year: '',
-          linkedin: '#',
-          github: '#',
-          skills: [],
-          bio: ''
-        }
-      })
+    // If Firestore fails or no data found, use teamData.json as primary source
+    console.log('Using teamData.json as data source')
+    const studentData = teamData.studentTeamData || []
+    // Add id field and sort by order if available, otherwise by role
+    return studentData.map((member, index) => ({
+      ...member,
+      id: member.id || `student-${index}`
+    })).sort((a, b) => {
+      if (a.order && b.order) return a.order - b.order
+      return sortMembersByRole([a, b])
     })
-    
-    // Process the data from constants
-    const members = coreMembersData.map(data => ({
-      id: data.id,
-      name: data.name || 'Unknown',
-      role: getUserRole(data),
-      usn: data.profile?.usn || data.usn || '',
-      branch: data.profile?.branch || '',
-      year: data.profile?.year || '',
-      linkedin: data.profile?.linkedin || '#',
-      github: data.profile?.github || '#',
-      imageSrc: data.photoURL || '/default-avatar.png',
-      skills: data.profile?.skills || [],
-      bio: data.profile?.bio || '',
-      phone: data.profile?.phone || '',
-      email: data.email || '',
-      isCoreMember: true,
-      ...data
-    }))
-    
-    // Sort by role hierarchy
-    return sortMembersByRole(members)
   } catch (error) {
     console.error('Error in fetchCoreMembers:', error)
     
     // Final fallback to JSON data
     try {
-      const { studentTeamData } = await import('../data/teamData.json')
-      return studentTeamData || []
+      console.log('Using static fallback data from teamData.json')
+      return teamData.studentTeamData || []
     } catch (importError) {
-      console.error('Failed to import fallback JSON data:', importError)
+      console.error('Failed to use fallback JSON data:', importError)
       
       // Return empty array as last resort
       return []
@@ -203,8 +163,8 @@ export const fetchFacultyMembers = async () => {
   try {
     // You can implement Firestore fetch for faculty if needed
     // For now, return static data
-    const { facultyData } = await import('../data/teamData.json')
-    return facultyData
+    console.log('Using static faculty data from teamData.json')
+    return teamData.facultyData
   } catch (error) {
     console.error('Error fetching faculty members:', error)
     return []

@@ -231,8 +231,8 @@ service cloud.firestore {
       // Public read access for displaying events
       allow read: if true;
 
-      // CREATE: admins only, require full valid payload
-      allow create: if isAdmin() && isValidEventData(request.resource.data);
+      // CREATE: any authenticated user, require full valid payload
+      allow create: if isAuthenticated() && isValidEventData(request.resource.data);
 
       // UPDATE: admins or limited public updates during registration
       allow update: if (

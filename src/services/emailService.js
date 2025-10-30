@@ -61,7 +61,9 @@ class EmailService {
           const expiryTime = Date.now() + this.otpExpiryTime
           
           // Store OTP in Firestore even if email isn't sent
-          const otpRef = doc(db, this.otpCollection, email)
+          
+          const safeEmailId = encodeURIComponent(email)
+          const otpRef = doc(db, this.otpCollection, safeEmailId)
           await setDoc(otpRef, {
             otp: hashedOTP,
             email: email,
@@ -86,7 +88,9 @@ class EmailService {
       // console.log('📧 Attempting to send OTP email to:', email)
 
       // Store OTP in Firestore (hashed for security)
-      const otpRef = doc(db, this.otpCollection, email)
+      // Store OTP in Firestore (hashed for security)
+      const safeEmailId = encodeURIComponent(email)
+      const otpRef = doc(db, this.otpCollection, safeEmailId)
       await setDoc(otpRef, {
         otp: hashedOTP,
         email: email,
@@ -137,7 +141,9 @@ class EmailService {
         const expiryTime = Date.now() + this.otpExpiryTime
         
         // Store OTP in Firestore
-        const otpRef = doc(db, this.otpCollection, email)
+        // Store OTP in Firestore
+        const safeEmailId = encodeURIComponent(email)
+        const otpRef = doc(db, this.otpCollection, safeEmailId)
         await setDoc(otpRef, {
           otp: hashedOTP,
           email: email,
@@ -189,7 +195,9 @@ class EmailService {
   async verifyOTP(email, inputOTP) {
     try {
       // Get OTP document
-      const otpRef = doc(db, this.otpCollection, email)
+      // Get OTP document
+      const safeEmailId = encodeURIComponent(email)
+      const otpRef = doc(db, this.otpCollection, safeEmailId)
       const otpDoc = await getDoc(otpRef)
 
       if (!otpDoc.exists()) {

@@ -18,10 +18,12 @@ import { getRoleCategory, getRoleColor, getStats } from '../utils/coreProfileUti
 
 const CoreMemberProfile = () => {
   const { user, getUserRoleDisplay, updateUserProfile } = useAuth()
+  const updatesDisabled = true
   const [isEditing, setIsEditing] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [selectedImage, setSelectedImage] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [showComingSoon, setShowComingSoon] = useState(true)
   const [formData, setFormData] = useState({
     name: user?.name || '',
     usn: user?.profile?.usn || user?.usn || '',
@@ -48,6 +50,7 @@ const CoreMemberProfile = () => {
 
   // Handle image selection
   const handleImageSelect = (file) => {
+    if (updatesDisabled) return
     setSelectedImage(file)
     // Automatically enter edit mode when image is selected
     if (!isEditing) {
@@ -161,6 +164,46 @@ const CoreMemberProfile = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 pt-20">
       <div className="container-custom py-8">
+        {/* Coming Soon Modal */}
+        {showComingSoon && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowComingSoon(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 10 }} 
+              animate={{ scale: 1, y: 0 }} 
+              exit={{ scale: 0.98, y: 6 }} 
+              transition={{ type: 'spring', stiffness: 180, damping: 14 }}
+              className="relative mx-4 w-full max-w-md rounded-2xl bg-white/90 dark:bg-gray-900/80 border border-white/20 p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                className="absolute top-3 right-3 p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/10"
+                onClick={() => setShowComingSoon(false)}
+                aria-label="Close"
+              >
+                <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+              </button>
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Core Member Profile</h3>
+                <p className="mt-2 text-gray-600 dark:text-gray-300">Profile update features are coming soon.</p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">We’re polishing the experience. Thanks for your patience!</p>
+                <div className="mt-5">
+                  <button 
+                    className="btn-primary w-full"
+                    onClick={() => setShowComingSoon(false)}
+                  >
+                    Got it
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
         {/* Header */}
         <ProfileHeader />
 
@@ -187,28 +230,19 @@ const CoreMemberProfile = () => {
                 previewUrl={previewUrl}
               />
 
-              {/* Edit Button */}
+              {/* Edit Button Disabled */}
               <button
-                onClick={() => isEditing ? handleCancel() : setIsEditing(true)}
-                disabled={isUploading}
-                className="btn-primary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled
+                className="btn-primary flex items-center space-x-2 opacity-50 cursor-not-allowed"
+                title="Editing is temporarily disabled"
               >
-                {isEditing ? (
-                  <>
-                    <X size={18} />
-                    <span>Cancel</span>
-                  </>
-                ) : (
-                  <>
-                    <Edit size={18} />
-                    <span>Edit Profile</span>
-                  </>
-                )}
+                <Edit size={18} />
+                <span>Edit Profile</span>
               </button>
             </div>
 
             {/* Profile Form/Display */}
-            {isEditing ? (
+            {isEditing && !updatesDisabled ? (
               <ProfileForm 
                 formData={formData}
                 handleChange={handleChange}

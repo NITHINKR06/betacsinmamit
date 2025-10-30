@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import toast from 'react-hot-toast'
@@ -10,17 +10,36 @@ import { membershipPlans } from '../data/membershipData'
 export const useRecruit = () => {
   const navigate = useNavigate()
   const { user, signInWithGoogle } = useAuth()
-  const [selectedPlan, setSelectedPlan] = useState('annual')
+  const [selectedPlan, setSelectedPlan] = useState('one-year')
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    name: user?.name || '',
+  
+  // Initialize form data with user profile data
+  const getInitialFormData = () => ({
+    name: user?.name || user?.displayName || '',
     email: user?.email || '',
-    phone: '',
-    branch: '',
-    year: '',
-    usn: '',
+    phone: user?.phone || user?.profile?.phone || '',
+    branch: user?.branch || user?.profile?.branch || '',
+    year: user?.profile?.year || '',
+    usn: user?.usn || '',
     whyJoin: ''
   })
+  
+  const [formData, setFormData] = useState(getInitialFormData())
+
+  // Update form data when user data changes
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user?.name || user?.displayName || '',
+        email: user?.email || '',
+        phone: user?.phone || user?.profile?.phone || '',
+        branch: user?.branch || user?.profile?.branch || '',
+        year: user?.profile?.year || '',
+        usn: user?.usn || '',
+        whyJoin: ''
+      })
+    }
+  }, [user?.name, user?.email, user?.phone, user?.profile?.phone, user?.branch, user?.profile?.branch, user?.profile?.year, user?.usn])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -77,16 +96,19 @@ export const useRecruit = () => {
 
       // Get selected plan
       const plan = membershipPlans.find(p => p.id === selectedPlan)
+      const totalPrice = plan.basePrice + plan.platformFee
       
       // Create order (in production, this would be an API call to your backend)
       const orderData = {
-        amount: plan.price * 100, // Amount in paise
+        amount: totalPrice * 100, // Amount in paise
         currency: 'INR',
         receipt: `CSI_${Date.now()}`,
         notes: {
           userId: user.uid,
           planId: plan.id,
-          planName: plan.name
+          planName: plan.name,
+          basePrice: plan.basePrice,
+          platformFee: plan.platformFee
         }
       }
 

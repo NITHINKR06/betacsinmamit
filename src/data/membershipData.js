@@ -1,9 +1,10 @@
 // Membership plans data
 export const membershipPlans = [
   {
-    id: 'annual',
-    name: 'Annual Membership',
-    price: 500,
+    id: 'one-year',
+    name: '1-Year Executive Membership',
+    basePrice: 350,
+    platformFee: 8,
     duration: '1 Year',
     popular: true,
     features: [
@@ -18,18 +19,42 @@ export const membershipPlans = [
     ]
   },
   {
-    id: 'semester',
-    name: 'Semester Membership',
-    price: 300,
-    duration: '6 Months',
+    id: 'two-year',
+    name: '2-Year Executive Membership',
+    basePrice: 650,
+    platformFee: 14,
+    duration: '2 Years',
     popular: false,
     features: [
-      'Access to workshops and events',
-      'Learning resources',
+      'All 1-year benefits included',
+      'Extended access to resources',
       'Certificate of membership',
-      'Networking opportunities',
+      'Priority event access',
       'Project collaboration',
-      'Limited competition access'
+      'Mentorship opportunities',
+      'Competition participation',
+      'CSI India membership benefits',
+      'Special discounts on events'
+    ]
+  },
+  {
+    id: 'three-year',
+    name: '3-Year Executive Membership',
+    basePrice: 900,
+    platformFee: 19,
+    duration: '3 Years',
+    popular: false,
+    features: [
+      'All 2-year benefits included',
+      'Long-term membership access',
+      'Certificate of membership',
+      'VIP event access',
+      'Extended project collaboration',
+      'Advanced mentorship program',
+      'Exclusive competition access',
+      'CSI India membership benefits',
+      'Best value for long-term members',
+      'Alumni network access'
     ]
   }
 ]

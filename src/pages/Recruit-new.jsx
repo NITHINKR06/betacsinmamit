@@ -19,7 +19,7 @@ const Recruit = () => {
   } = useRecruit()
 
   return (
-    <div className="min-h-screen pt-20 pb-10">
+    <div className="min-h-screen pt-20 pb-20">
       {/* Hero Section */}
       <RecruitHero />
 

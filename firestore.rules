@@ -140,12 +140,18 @@ service cloud.firestore {
       }
       
       function isValidProfileData(profile) {
-        // Allow additional keys for backward compatibility (e.g., profile.role)
+        // Support nested profile fields used by core-profile UI
         return (profile.phone == null || profile.phone == "" || isValidPhone(profile.phone)) &&
                (profile.college == null || profile.college == "" || isValidStringLength(profile.college, 0, 100)) &&
                (profile.branch == null || profile.branch == "" || isValidStringLength(profile.branch, 0, 100)) &&
                (profile.year == null || profile.year == "" || isValidStringLength(profile.year, 0, 20)) &&
-               (profile.bio == null || profile.bio == "" || isValidStringLength(profile.bio, 0, 500));
+               (profile.bio == null || profile.bio == "" || isValidStringLength(profile.bio, 0, 500)) &&
+               (profile.usn == null || profile.usn == "" || isValidUSN(profile.usn)) &&
+               (profile.linkedin == null || profile.linkedin == "" || isValidURL(profile.linkedin, 200)) &&
+               (profile.github == null || profile.github == "" || isValidURL(profile.github, 200)) &&
+               (profile.skills == null || profile.skills is list) &&
+               // image history is appended when uploading photos
+               (profile.imageHistory == null || profile.imageHistory is list);
       }
       
       function isValidUserUpdate(newData, oldData) {
@@ -159,7 +165,7 @@ service cloud.firestore {
         // Only these fields can be updated in relaxed path
         return newData.diff(oldData).affectedKeys().hasOnly([
                 'name','bio','branch','usn','github','linkedin','phone','year',
-                'profile','updatedAt','photoURL','certificates','email'
+                'profile','updatedAt','photoURL','certificates','email','roleDetails'
                ]) &&
                // Keep createdAt immutable
                (!(newData.keys().hasAny(['createdAt'])) || newData.createdAt == oldData.createdAt);

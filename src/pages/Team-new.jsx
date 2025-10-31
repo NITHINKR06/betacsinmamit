@@ -112,14 +112,14 @@ const Team = () => {
         <TeamTabs activeTab={activeTab} setActiveTab={setActiveTab} />
         
         {/* Refresh Button */}
-        <button
+        {/* <button
           onClick={handleRefresh}
           disabled={loading}
           className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-yellow-500 text-white hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Refresh team data"
         >
           <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
-        </button>
+        </button> */}
       </div>
 
       {/* Team Grid */}

@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 
 const TeamHero = () => {
   return (
-    <section className="relative py-24 overflow-hidden">
+    <section className="relative py-16 overflow-hidden">
       {/* Animated Gradient Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-800 via-black to-purple-900 opacity-95" />
       <div className="absolute inset-0">

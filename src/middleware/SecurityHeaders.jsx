@@ -110,10 +110,17 @@ const SecurityHeaders = ({ children }) => {
     xcontentMeta.content = 'nosniff'
     document.head.appendChild(xcontentMeta)
 
+    // Add Referrer-Policy to minimize referrer leakage
+    const referrerMeta = document.createElement('meta')
+    referrerMeta.name = 'referrer'
+    referrerMeta.content = 'no-referrer'
+    document.head.appendChild(referrerMeta)
+
     // Cleanup
     return () => {
       if (cspMeta.parentNode) cspMeta.parentNode.removeChild(cspMeta)
       if (xcontentMeta.parentNode) xcontentMeta.parentNode.removeChild(xcontentMeta)
+      if (referrerMeta.parentNode) referrerMeta.parentNode.removeChild(referrerMeta)
     }
   }, [location])
 

@@ -87,6 +87,10 @@ export const useRecruit = () => {
     setLoading(true)
 
     try {
+      if (!import.meta.env.VITE_RAZORPAY_KEY_ID) {
+        toast.error('Payment gateway not configured')
+        return
+      }
       // Load Razorpay script
       const res = await loadRazorpayScript()
       if (!res) {
@@ -114,7 +118,7 @@ export const useRecruit = () => {
 
       // Initialize Razorpay
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_key', // Replace with your key
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: orderData.amount,
         currency: orderData.currency,
         name: 'CSI NMAMIT',

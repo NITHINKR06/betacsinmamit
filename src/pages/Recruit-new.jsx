@@ -3,7 +3,7 @@ import RecruitHero from '../components/Recruit/RecruitHero'
 import BenefitsSection from '../components/Recruit/BenefitsSection'
 import MembershipPlans from '../components/Recruit/MembershipPlans'
 import RegistrationForm from '../components/Recruit/RegistrationForm'
-import { useRecruit } from '../hooks/useRecruit'
+import { useSecureRecruit } from '../hooks/useSecureRecruit'
 
 const Recruit = () => {
   const { user } = useAuth()
@@ -16,7 +16,7 @@ const Recruit = () => {
     handleInputChange,
     handleSubmit,
     signInWithGoogle
-  } = useRecruit()
+  } = useSecureRecruit()
 
   return (
     <div className="min-h-screen pt-20 pb-20">

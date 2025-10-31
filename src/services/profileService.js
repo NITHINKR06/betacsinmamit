@@ -1,6 +1,7 @@
 import { doc, updateDoc, getDoc, setDoc, serverTimestamp, arrayUnion } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { uploadToCloudinary } from '../config/cloudinary'
+import { sanitizeFormData } from '../utils/securityUtils'
 
 /**
  * Upload profile image to Cloudinary and update user document
@@ -53,6 +54,8 @@ export const updateUserProfile = async (userId, profileData) => {
   }
 
   try {
+    // Sanitize incoming data
+    const safeProfileData = sanitizeFormData(profileData)
     const userRef = doc(db, 'users', userId)
     
     // Check if user document exists
@@ -62,14 +65,14 @@ export const updateUserProfile = async (userId, profileData) => {
       // Create new document if it doesn't exist
       await setDoc(userRef, {
         uid: userId,
-        ...profileData,
+        ...safeProfileData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       })
     } else {
       // Update existing document
       await updateDoc(userRef, {
-        ...profileData,
+        ...safeProfileData,
         updatedAt: serverTimestamp()
       })
     }
@@ -123,19 +126,26 @@ export const updateProfileWithImage = async (userId, profileData, imageFile = nu
     }
     
     // Prepare update data
-    const updateData = {
+    // Sanitize base profile fields
+    const safeBase = sanitizeFormData({
       name: profileData.name,
       photoURL: photoURL,
+    })
+
+    const updateData = {
+      ...safeBase,
       profile: {
-        usn: profileData.usn || '',
-        phone: profileData.phone || '',
-        role: profileData.role || '',
-        bio: profileData.bio || '',
-        branch: profileData.branch || '',
-        year: profileData.year || '',
-        skills: profileData.skills || [],
-        linkedin: profileData.linkedin || '',
-        github: profileData.github || '',
+        ...sanitizeFormData({
+          usn: profileData.usn || '',
+          phone: profileData.phone || '',
+          role: profileData.role || '',
+          bio: profileData.bio || '',
+          branch: profileData.branch || '',
+          year: profileData.year || '',
+          skills: profileData.skills || [],
+          linkedin: profileData.linkedin || '',
+          github: profileData.github || '',
+        }),
         updatedAt: serverTimestamp()
       }
     }
@@ -143,7 +153,7 @@ export const updateProfileWithImage = async (userId, profileData, imageFile = nu
     // Also update roleDetails if role is provided
     if (profileData.role) {
       updateData.roleDetails = {
-        position: profileData.role,
+        position: sanitizeFormData({ position: profileData.role }).position,
         updatedAt: serverTimestamp()
       }
     }

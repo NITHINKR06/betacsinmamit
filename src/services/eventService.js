@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { isCloudinaryConfigured, getCloudinaryStatus } from '../config/cloudinary'
+import { sanitizeFormData } from '../utils/securityUtils'
 
 // Cloudinary configuration - Updated with proper cloud name
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dqnlrrcgb'
@@ -98,8 +99,11 @@ export const createEvent = async (eventData, imageFile) => {
     }
 
     // Prepare event data for Firestore
+    // Sanitize incoming event data
+    const safeEvent = sanitizeFormData(eventData)
+
     const eventDoc = {
-      ...eventData,
+      ...safeEvent,
       image: cloudinaryUrl,
       cloudinaryUrl: cloudinaryUrl,
       createdAt: serverTimestamp(),
@@ -110,8 +114,8 @@ export const createEvent = async (eventData, imageFile) => {
       participants: eventData.participants || [],
       contactPersons: eventData.contactPersons || [],
       registrationsAvailable: eventData.registrationsAvailable || false,
-      searchTitle: eventData.title?.toLowerCase() || '',
-      searchDescription: eventData.description?.toLowerCase() || '',
+      searchTitle: safeEvent.title?.toLowerCase() || '',
+      searchDescription: safeEvent.description?.toLowerCase() || '',
       year: parseInt(eventData.year) || new Date().getFullYear()
     }
 
@@ -140,7 +144,8 @@ export const createEvent = async (eventData, imageFile) => {
  */
 export const updateEvent = async (eventId, eventData, imageFile) => {
   try {
-    let updateData = { ...eventData }
+    // Sanitize incoming event update data
+    let updateData = { ...sanitizeFormData(eventData) }
     
     // Check if cloudinaryUrl is already provided in eventData
     if (eventData.cloudinaryUrl) {
@@ -156,8 +161,8 @@ export const updateEvent = async (eventId, eventData, imageFile) => {
 
     // Update Firestore document
     updateData.updatedAt = serverTimestamp()
-    updateData.searchTitle = eventData.title?.toLowerCase() || ''
-    updateData.searchDescription = eventData.description?.toLowerCase() || ''
+    updateData.searchTitle = updateData.title?.toLowerCase() || ''
+    updateData.searchDescription = updateData.description?.toLowerCase() || ''
     
     if (eventData.year) {
       updateData.year = parseInt(eventData.year)

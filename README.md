@@ -168,6 +168,19 @@ npm install
 npm run dev
 ```
 
+## 🔐 Payments Webhook (Optional Hardening)
+
+We added a Firebase Cloud Function to validate Razorpay webhooks and enforce simple registration invariants. This is optional and does not affect existing frontend flows.
+
+Deploy steps:
+
+1. Install Firebase tools: `npm i -g firebase-tools`
+2. Login and select your project: `firebase login` then `firebase use <your-project-id>`
+3. Configure secret: `firebase functions:config:set razorpay.webhook_secret="YOUR_WEBHOOK_SECRET"`
+4. Deploy functions: `cd functions && npm install && cd .. && firebase deploy --only functions`
+
+Function endpoint: `razorpayWebhook` (use the HTTPS URL from Firebase console). Configure this URL and secret in the Razorpay dashboard.
+
 
 ## 📱 **Page Structure & Navigation**
 

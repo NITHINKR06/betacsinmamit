@@ -237,12 +237,15 @@ service cloud.firestore {
       // Public read access for displaying events
       allow read: if true;
 
-      // CREATE: any authenticated user, require full valid payload
-      allow create: if isAuthenticated() && isValidEventData(request.resource.data);
+      // CREATE: admins only (public creates happen in eventRegistrations/teams)
+      allow create: if isAdmin() && isValidEventData(request.resource.data);
 
       // UPDATE: admins or limited public updates during registration
-      // RELAXED: allow any signed-in user to perform updates needed by registration/join flows for debugging
-      allow update: if isAuthenticated();
+      allow update: if (
+        isAdmin() && isValidEventUpdate(request.resource.data, resource.data)
+      ) || (
+        isAuthenticated() && isValidPublicEventRegistrationUpdate(request.resource.data, resource.data)
+      );
 
       // DELETE: admins only
       allow delete: if isAdmin();
@@ -317,10 +320,12 @@ service cloud.firestore {
     // ============================================================================
     
     match /teams/{teamId} {
-      // Authenticated users can read teams they're part of or created
-      allow read: if isAuthenticated() && 
-        (resource.data.custid == request.auth.uid || 
-         request.auth.uid in resource.data.get('members', []));
+      // Authenticated users can read teams they're part of or created; admins can read all
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.custid == request.auth.uid || 
+        request.auth.uid in resource.data.get('members', [])
+      );
       
       // Authenticated users can create teams
       allow create: if isAuthenticated() && 
@@ -330,9 +335,9 @@ service cloud.firestore {
         request.resource.data.createdAt is timestamp &&
         request.resource.data.updatedAt is timestamp;
       
-      // Team owners can update teams
+      // Team owners (or admins) can update teams
       allow update: if isAuthenticated() && 
-        resource.data.custid == request.auth.uid &&
+        (resource.data.custid == request.auth.uid || isAdmin()) &&
         isValidTeamUpdate(request.resource.data, resource.data) &&
         // Accept any timestamp value for updatedAt
         request.resource.data.updatedAt is timestamp &&
@@ -365,21 +370,20 @@ service cloud.firestore {
     // EVENT REGISTRATIONS (per-user registrations/teams per event)
     // ============================================================================
     match /eventRegistrations/{regId} {
-      // Read: owner, admin, any signed-in user for team registrations
-      // Also allow reads when document has teamCode (backward compatibility for older docs missing registrationType)
+      // Read: owner or admin; allow backward-compat teamCode reads
       allow read: if isAuthenticated() && (
         resource.data.userId == request.auth.uid ||
         isAdmin() ||
-        resource.data.registrationType == 'team' ||
         (resource.data.teamCode is string)
       );
 
-      // TEMP: Relaxed rules to diagnose permission issues in production
-      // Create registration or team by any signed-in user
-      allow create: if isAuthenticated();
+      // Create: owner-only with schema validation
+      allow create: if isAuthenticated() && isValidEventRegistrationCreate(request.resource.data);
 
-      // Allow updates by any signed-in user (UI only updates 'members')
-      allow update: if isAuthenticated();
+      // Update: owner or admin; only 'members' changes allowed
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      ) && isValidEventRegistrationUpdate(request.resource.data, resource.data);
 
       // No client-side deletes
       allow delete: if false;

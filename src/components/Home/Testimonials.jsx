@@ -51,7 +51,7 @@ const Testimonials = () => {
 
   return (
     <section
-      className="section-padding relative dark:bg-gray-900"
+      className="section-padding relative "
       ref={ref}
     >
       <div className="container-custom relative">

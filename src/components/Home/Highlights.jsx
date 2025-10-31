@@ -188,7 +188,7 @@ const Highlights = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+              className="fixed inset-0 z-40 flex items-center justify-center p-4 pt-24 md:pt-28 bg-black/90 backdrop-blur-sm"
               onClick={closeLightbox}
             >
               <motion.div
@@ -201,7 +201,7 @@ const Highlights = () => {
                 {/* Close Button */}
                 <button
                   onClick={closeLightbox}
-                  className="absolute -top-12 right-0 p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                  className="absolute top-4 right-4 p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
                 >
                   <X size={24} className="text-white" />
                 </button>

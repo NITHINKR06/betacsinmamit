@@ -23,52 +23,59 @@ export const useEvents = (initialYear = '2024') => {
       setError(null)
       
       try {
-        // Fetch from Firestore
+        // Fetch from Firestore. Do not rely on fields that may be missing
+        // like `year` or `published`. We'll derive year client-side and only
+        // exclude unpublished items when the field explicitly says false.
         const eventsRef = collection(db, 'events')
-        const q = query(
-          eventsRef,
-          where('year', '==', parseInt(selectedYear)),
-          where('published', '==', true),
-          orderBy('date', 'desc')
-        )
-        
+
+        let eventsData = []
         try {
-          const snapshot = await getDocs(q)
-          const eventsData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }))
-          setEvents(eventsData)
-          setFilteredEvents(eventsData)
-        } catch (firestoreError) {
-          // If Firestore query fails (e.g., index not created), try without orderBy
-          // console.warn('Firestore query with orderBy failed, trying without ordering:', firestoreError)
-          
-          const simpleQuery = query(
-            eventsRef,
-            where('year', '==', parseInt(selectedYear)),
-            where('published', '==', true)
-          )
-          
-          const snapshot = await getDocs(simpleQuery)
-          const eventsData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }))
-          
-          // Sort manually if orderBy failed
+          // Prefer ordering by createdAt if an index exists
+          const orderedQuery = query(eventsRef, orderBy('createdAt', 'desc'))
+          const snapshot = await getDocs(orderedQuery)
+          eventsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+        } catch (firestoreOrderError) {
+          // Fall back to an unordered fetch if orderBy requires an index
+          const snapshot = await getDocs(eventsRef)
+          eventsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+          // Manual sort by best-effort timestamp
           eventsData.sort((a, b) => {
-            const dateA = new Date(a.date || a.createdAt)
-            const dateB = new Date(b.date || b.createdAt)
-            return dateB - dateA
+            const getTime = (x) => {
+              const fromCreated = x?.createdAt ? new Date(x.createdAt).getTime() : undefined
+              const fromDate = x?.date ? new Date(x.date).getTime() : undefined
+              return (Number.isFinite(fromCreated) ? fromCreated : -Infinity) || (Number.isFinite(fromDate) ? fromDate : -Infinity)
+            }
+            return getTime(b) - getTime(a)
           })
-          
-          setEvents(eventsData)
-          setFilteredEvents(eventsData)
         }
+
+        // Filter out explicitly unpublished docs only
+        const visibleEvents = eventsData.filter(e => e.published !== false)
+
+        // Derive year from fields and filter by selected year
+        const deriveYear = (e) => {
+          if (e.year) return parseInt(e.year)
+          if (typeof e.date === 'string') {
+            // support values like '2019' or ISO "2025-08-03..."
+            const yearPart = e.date.slice(0, 4)
+            const y = parseInt(yearPart)
+            if (!Number.isNaN(y)) return y
+          }
+          if (e.createdAt) {
+            const y = new Date(e.createdAt).getFullYear()
+            if (Number.isFinite(y)) return y
+          }
+          return undefined
+        }
+
+        const yearInt = parseInt(selectedYear)
+        const filteredByYear = visibleEvents.filter(e => deriveYear(e) === yearInt)
+
+        setEvents(filteredByYear)
+        setFilteredEvents(filteredByYear)
         
         // If no events in Firestore, fallback to mock data
-        if (events.length === 0 && mockEvents[selectedYear]) {
+        if (filteredByYear.length === 0 && mockEvents[selectedYear]) {
           // console.log('No events in Firestore, using mock data')
           const yearEvents = mockEvents[selectedYear] || []
           setEvents(yearEvents)

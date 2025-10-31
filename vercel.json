@@ -1,4 +1,6 @@
 {
+  "installCommand": "yarn install --frozen-lockfile --network-timeout 600000 --prefer-offline --non-interactive || yarn install --frozen-lockfile --network-timeout 600000 --prefer-offline --non-interactive",
+  "buildCommand": "yarn build",
   "rewrites": [
     {
       "source": "/(.*)",

@@ -401,105 +401,121 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
   return (
     <>
     <AnimatePresence>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-40 p-4 overflow-y-auto pt-24 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="fixed inset-0 z-40 overflow-y-auto p-4 pt-20 md:pt-24 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* Vivid gradient veil */}
+        <div className="fixed inset-0  backdrop-blur-md" />
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl max-w-4xl w-full max-h-[85vh] overflow-y-auto mt-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          className="relative mx-auto max-w-5xl w-full max-h-[85vh] overflow-y-auto mt-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         >
+          {/* Gradient border shell */}
+          <div className="p-[1px] rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
+            <div className="bg-white/95 dark:bg-gray-900/90 rounded-2xl shadow-2xl">
           {/* Header */}
-          <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-4 flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-white">{event.title}</h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleShare}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                title="Share Event"
-              >
-                <Share2 className="w-5 h-5 text-white" />
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
+          <div className="relative overflow-hidden rounded-t-2xl">
+            {/* Cover */}
+            <div className="relative h-32 md:h-36">
+              <div className="absolute inset-0">
+                {/* <img src={event.image} alt="cover" className="w-full h-full object-cover" /> */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+              </div>
+              <div className="absolute inset-x-0 bottom-0 px-6 pb-4 flex items-end justify-between">
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white drop-shadow-sm">{event.title}</h2>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
+                      {event.type || 'EVENT'}
+                    </span>
+                    {event.category && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/20 text-white ring-1 ring-white/30">
+                        {event.category}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleShare}
+                    className="p-2 rounded-lg bg-white/15 hover:bg-white/25 text-white transition"
+                    title="Share Event"
+                  >
+                    <Share2 className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="p-2 rounded-lg bg-white/15 hover:bg-white/25 text-white transition"
+                    title="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Content */}
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-8">
             {/* Event Image */}
-            <div className="relative h-64 rounded-xl overflow-hidden">
-              <img
-                src={event.image}
-                alt={event.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-white text-xs font-medium bg-gradient-to-r ${getEventTypeColor(event.type)}`}>
-                {event.type}
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Visual card */}
+              <div className="relative rounded-xl overflow-hidden ring-1 ring-black/10 dark:ring-white/10">
+                <img src={event.image} alt={event.title} className="w-full h-56 md:h-full object-cover" />
+                {!event.registrationsAvailable && (
+                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-red-500 text-white text-xs font-semibold">
+                    Registrations Closed
+                  </div>
+                )}
               </div>
-              {!event.registrationsAvailable && (
-                <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-red-500 text-white text-xs font-medium">
-                  Registrations Closed
+              {/* Facts card */}
+              <div className="rounded-xl p-5 bg-white/70 dark:bg-white/5 backdrop-blur-md ring-1 ring-black/10 dark:ring-white/10">
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="flex items-start gap-3">
+                    <Calendar className="w-5 h-5 text-indigo-500 mt-0.5" />
+                    <div>
+                      <div className="text-sm text-gray-500">Date</div>
+                      <div className="font-semibold text-gray-900 dark:text-gray-100">{formatEventDate(event.date)}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-purple-500 mt-0.5" />
+                    <div>
+                      <div className="text-sm text-gray-500">Time</div>
+                      <div className="font-semibold text-gray-900 dark:text-gray-100">{event.time || 'N/A'}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-5 h-5 text-pink-500 mt-0.5" />
+                    <div>
+                      <div className="text-sm text-gray-500">Location</div>
+                      <div className="font-semibold text-gray-900 dark:text-gray-100">{event.venue || 'N/A'}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <DollarSign className="w-5 h-5 text-emerald-500 mt-0.5" />
+                    <div>
+                      <div className="text-sm text-gray-500">Entry Fee</div>
+                      <div className="font-semibold text-gray-900 dark:text-gray-100">₹{event.entryFee || 0}</div>
+                    </div>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Event Details */}
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="flex items-start gap-3">
-                <Calendar className="w-5 h-5 text-primary-500 mt-0.5" />
-                <div>
-                  <div className="text-sm text-gray-500">Date</div>
-                  <div className="font-medium">{formatEventDate(event.date)}</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Clock className="w-5 h-5 text-primary-500 mt-0.5" />
-                <div>
-                  <div className="text-sm text-gray-500">Time</div>
-                  <div className="font-medium">{event.time || 'N/A'}</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-primary-500 mt-0.5" />
-                <div>
-                  <div className="text-sm text-gray-500">Location</div>
-                  <div className="font-medium">{event.venue || 'N/A'}</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <DollarSign className="w-5 h-5 text-primary-500 mt-0.5" />
-                <div>
-                  <div className="text-sm text-gray-500">Entry Fee</div>
-                  <div className="font-medium">₹{event.entryFee || 0}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Description</h3>
-              <p className="text-gray-600 dark:text-gray-400 whitespace-pre-line">
+            <div className="rounded-xl p-5 bg-gradient-to-br from-white/60 to-white/30 dark:from-gray-800/50 dark:to-gray-800/30 backdrop-blur-md ring-1 ring-black/10 dark:ring-white/10">
+              <h3 className="text-xl font-semibold mb-3">About the Event</h3>
+              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
                 {event.description}
               </p>
+              {event.brief && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-semibold tracking-wide text-gray-500 uppercase">More Details</h4>
+                  <p className="mt-2 text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">{event.brief}</p>
+                </div>
+              )}
             </div>
-
-            {/* Brief */}
-            {event.brief && (
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Details</h3>
-                <p className="text-gray-600 dark:text-gray-400 whitespace-pre-line">
-                  {event.brief}
-                </p>
-              </div>
-            )}
 
             {/* Organizers */}
             <div>
@@ -541,17 +557,17 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
             {event.registrationsAvailable && (
               <div className="border-t pt-6">
                 {!user ? (
-                  <div className="text-center space-y-4">
+                  <div className="text-center space-y-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-800/40 dark:to-gray-800/20 rounded-xl p-6">
                     <AlertCircle className="w-12 h-12 text-primary-500 mx-auto" />
                     <p className="text-gray-600 dark:text-gray-400">
                       Please login to register for this event
                     </p>
-                    <button onClick={handleLogin} className="btn-primary">
+                    <button onClick={handleLogin} className="px-5 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 transition">
                       Login with Google
                     </button>
                   </div>
                 ) : isProfileIncomplete ? (
-                  <div className="text-center space-y-4">
+                  <div className="text-center space-y-4 bg-amber-50 dark:bg-gray-800/30 rounded-xl p-6">
                     <AlertCircle className="w-12 h-12 text-amber-500 mx-auto" />
                     <p className="text-gray-600 dark:text-gray-400">
                       Please complete your profile to register for events
@@ -561,7 +577,7 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
                         onClose()
                         window.location.href = '/profile'
                       }} 
-                      className="btn-primary"
+                      className="px-5 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 transition"
                     >
                       Go to Profile
                     </button>
@@ -572,14 +588,14 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
                       <div className="flex gap-3">
                         <button
                           onClick={() => setShowTeamForm(true)}
-                          className="flex-1 btn-primary flex items-center justify-center gap-2"
+                          className="flex-1 px-4 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 transition flex items-center justify-center gap-2"
                         >
                           <Plus className="w-4 h-4" />
                           Create Team
                         </button>
                         <button
                           onClick={() => setShowJoinTeamForm(true)}
-                          className="flex-1 btn-secondary flex items-center justify-center gap-2"
+                          className="flex-1 px-4 py-2 rounded-lg font-semibold bg-white/80 dark:bg-white/10 text-gray-900 dark:text-gray-100 ring-1 ring-black/10 dark:ring-white/10 hover:bg-white/90 dark:hover:bg-white/15 transition flex items-center justify-center gap-2"
                         >
                           <TeamIcon className="w-4 h-4" />
                           Join Team
@@ -635,7 +651,7 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
                           <button
                             onClick={handleCreateTeam}
                             disabled={loading}
-                            className="flex-1 btn-primary"
+                            className="flex-1 px-4 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 transition"
                           >
                             {loading ? (
                               <Loader className="w-4 h-4 animate-spin mx-auto" />
@@ -648,7 +664,7 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
                               setShowTeamForm(false)
                               setTeamName('')
                             }}
-                            className="flex-1 btn-secondary"
+                            className="flex-1 px-4 py-2 rounded-lg font-semibold bg-white/80 dark:bg-white/10 text-gray-900 dark:text-gray-100 ring-1 ring-black/10 dark:ring-white/10 hover:bg-white/90 dark:hover:bg-white/15 transition"
                             disabled={loading}
                           >
                             Cancel
@@ -675,7 +691,7 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
                           <button
                             onClick={handleJoinTeam}
                             disabled={loading}
-                            className="flex-1 btn-primary"
+                            className="flex-1 px-4 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 transition"
                           >
                             {loading ? (
                               <Loader className="w-4 h-4 animate-spin mx-auto" />
@@ -688,7 +704,7 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
                               setShowJoinTeamForm(false)
                               setTeamCode('')
                             }}
-                            className="flex-1 btn-secondary"
+                            className="flex-1 px-4 py-2 rounded-lg font-semibold bg-white/80 dark:bg-white/10 text-gray-900 dark:text-gray-100 ring-1 ring-black/10 dark:ring-white/10 hover:bg-white/90 dark:hover:bg-white/15 transition"
                             disabled={loading}
                           >
                             Cancel
@@ -702,7 +718,7 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
                     <button
                       onClick={handleIndividualRegistration}
                       disabled={loading}
-                      className="btn-primary"
+                      className="px-6 py-2.5 rounded-lg font-semibold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 transition"
                     >
                       {loading ? (
                         <Loader className="w-4 h-4 animate-spin mx-auto" />
@@ -726,6 +742,8 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
                 </p>
               </div>
             )}
+          </div>
+            </div>
           </div>
         </motion.div>
       </div>

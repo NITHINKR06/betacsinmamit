@@ -40,10 +40,11 @@ const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'))
 const AdminUsers = lazy(() => import('./pages/Admin/AdminUsers-clean'))
 const AdminEvents = lazy(() => import('./pages/Admin/AdminEvents'))
 const AdminEMembers = lazy(() => import('./pages/Admin/AdminEMembers-clean'))
+const AdminSettings = lazy(() => import('./pages/Admin/AdminSettings'))
 
 // Loading component for lazy loaded admin routes
 const AdminLoading = () => (
-  <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+  <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
     <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
   </div>
 )
@@ -176,7 +177,7 @@ function AppContent() {
             <Route path="content" element={<div className="p-6"><h1 className="text-3xl font-bold text-white">Content Management</h1><p className="text-gray-400 mt-2">Coming soon...</p></div>} />
             <Route path="analytics" element={<div className="p-6"><h1 className="text-3xl font-bold text-white">Analytics</h1><p className="text-gray-400 mt-2">Coming soon...</p></div>} />
             <Route path="messages" element={<div className="p-6"><h1 className="text-3xl font-bold text-white">Messages</h1><p className="text-gray-400 mt-2">Coming soon...</p></div>} />
-            <Route path="settings" element={<div className="p-6"><h1 className="text-3xl font-bold text-white">Settings</h1><p className="text-gray-400 mt-2">Coming soon...</p></div>} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
         </Routes>
       </div>
@@ -205,16 +206,21 @@ function App() {
 
     // Optional: Add a subtle watermark instead of blocking right-click
     const addWatermark = () => {
-      if (import.meta.env.VITE_APP_ENV === 'production') {
-        // You can add a watermark to copied content instead of blocking
-        document.addEventListener('copy', (e) => {
-          const selection = window.getSelection().toString()
-          if (selection.length > 50) {
-            e.clipboardData.setData('text/plain', selection + '\n\n© CSI NMAMIT')
-            e.preventDefault()
-          }
-        })
-      }
+      try {
+        const saved = localStorage.getItem('adminSettings')
+        const adminSettings = saved ? JSON.parse(saved) : {}
+        const enabled = adminSettings.clipboardWatermark !== false
+        if (import.meta.env.VITE_APP_ENV === 'production' && enabled) {
+          // You can add a watermark to copied content instead of blocking
+          document.addEventListener('copy', (e) => {
+            const selection = window.getSelection().toString()
+            if (selection.length > 50) {
+              e.clipboardData.setData('text/plain', selection + '\n\n© CSI NMAMIT')
+              e.preventDefault()
+            }
+          })
+        }
+      } catch {}
     }
 
     // Add event listeners

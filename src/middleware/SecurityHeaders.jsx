@@ -10,6 +10,13 @@ const SecurityHeaders = ({ children }) => {
   const location = useLocation()
 
   useEffect(() => {
+    // Load admin settings if present
+    let adminSettings = {}
+    try {
+      const saved = localStorage.getItem('adminSettings')
+      adminSettings = saved ? JSON.parse(saved) : {}
+    } catch {}
+
     // Prevent clickjacking
     if (window.self !== window.top) {
       window.top.location = window.self.location
@@ -17,7 +24,11 @@ const SecurityHeaders = ({ children }) => {
 
     // Disable right-click on payment pages (optional)
     const handleContextMenu = (e) => {
-      if (location.pathname === '/recruit' || location.pathname === '/profile') {
+      if (
+        (location.pathname === '/recruit' || location.pathname === '/profile') &&
+        adminSettings.blockRightClickOnSensitive !== false &&
+        adminSettings.hardenRecruitProtections !== false
+      ) {
         e.preventDefault()
         return false
       }
@@ -25,7 +36,12 @@ const SecurityHeaders = ({ children }) => {
 
     // Prevent text selection on sensitive pages (optional)
     const handleSelectStart = (e) => {
-      if (location.pathname === '/recruit' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+      if (
+        location.pathname === '/recruit' &&
+        adminSettings.blockSelectOnSensitive !== false &&
+        adminSettings.hardenRecruitProtections !== false &&
+        e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA'
+      ) {
         e.preventDefault()
         return false
       }
@@ -33,7 +49,7 @@ const SecurityHeaders = ({ children }) => {
 
     // Prevent print screen on payment pages (limited effectiveness)
     const handleKeyDown = (e) => {
-      if (location.pathname === '/recruit') {
+      if (location.pathname === '/recruit' && adminSettings.blockDevtoolsKeysOnSensitive !== false && adminSettings.hardenRecruitProtections !== false) {
         // Prevent PrintScreen (limited browser support)
         if (e.keyCode === 44) {
           e.preventDefault()
@@ -71,15 +87,22 @@ const SecurityHeaders = ({ children }) => {
   }, [location])
 
   // Add security-related meta tags
-  // Add security-related meta tags
   useEffect(() => {
+    let adminSettings = {}
+    try {
+      const saved = localStorage.getItem('adminSettings')
+      adminSettings = saved ? JSON.parse(saved) : {}
+    } catch {}
+
     // Add CSP meta tag (Note: frame-ancestors cannot be set via meta tag, only via HTTP headers)
     const cspMeta = document.createElement('meta')
     cspMeta.httpEquiv = 'Content-Security-Policy'
-    cspMeta.content = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://checkout.razorpay.com https://*.firebaseapp.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; img-src 'self' data: https: blob:; connect-src 'self' https://api.emailjs.com https://api.razorpay.com https://checkout.razorpay.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://accounts.google.com https://*.googleapis.com https://api.cloudinary.com https://res.cloudinary.com https://api.web3forms.com; frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://accounts.google.com https://*.firebaseapp.com https://*.firebaseauth.com; font-src 'self' data:;"
-    document.head.appendChild(cspMeta)
 
-    // X-Frame-Options cannot be set via meta; must be an HTTP header. Use CSP frame-ancestors instead.
+    const STANDARD_CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://checkout.razorpay.com https://*.firebaseapp.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; img-src 'self' data: https: blob:; connect-src 'self' https://api.emailjs.com https://api.razorpay.com https://checkout.razorpay.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://accounts.google.com https://*.googleapis.com https://api.cloudinary.com https://res.cloudinary.com https://api.web3forms.com; frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://accounts.google.com https://*.firebaseapp.com https://*.firebaseauth.com; font-src 'self' data:;"
+    const STRICT_CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'self'; font-src 'self' data:;"
+
+    cspMeta.content = adminSettings.cspLevel === 'strict' ? STRICT_CSP : STANDARD_CSP
+    document.head.appendChild(cspMeta)
 
     // Add X-Content-Type-Options
     const xcontentMeta = document.createElement('meta')
@@ -92,7 +115,7 @@ const SecurityHeaders = ({ children }) => {
       if (cspMeta.parentNode) cspMeta.parentNode.removeChild(cspMeta)
       if (xcontentMeta.parentNode) xcontentMeta.parentNode.removeChild(xcontentMeta)
     }
-  }, [])
+  }, [location])
 
   return children
 }

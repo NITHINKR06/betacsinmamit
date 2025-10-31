@@ -359,6 +359,15 @@
   color-scheme: dark;
 }
 
+/* Admin compact density - affects any table marked with .admin-table */
+.admin-compact .admin-table th,
+.admin-compact .admin-table td {
+  padding-top: 0.5rem; /* py-2 */
+  padding-bottom: 0.5rem;
+  padding-left: 0.75rem; /* px-3 */
+  padding-right: 0.75rem;
+}
+
 /* Smooth scroll behavior */
 html {
   scroll-behavior: smooth;

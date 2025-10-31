@@ -5,6 +5,23 @@
     <link rel="icon" type="image/png" href="/csi-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CSI NMAMIT - Computer Society of India</title>
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = saved || (prefersDark ? 'dark' : 'light');
+          var root = document.documentElement;
+          if (theme === 'dark') {
+            root.classList.add('dark');
+          } else {
+            root.classList.remove('dark');
+          }
+        } catch (e) {
+          // fail safe: do nothing
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

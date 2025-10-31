@@ -68,12 +68,12 @@ export default function PaymentTable({ payments, loading, onViewDetails }) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden">
         <div className="p-8 text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full mb-4">
-            <CreditCard className="w-6 h-6 text-gray-400 animate-pulse" />
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full mb-4">
+            <CreditCard className="w-6 h-6 text-gray-400 dark:text-gray-500 animate-pulse" />
           </div>
-          <p className="text-gray-500">Loading payment data...</p>
+          <p className="text-gray-500 dark:text-gray-400">Loading payment data...</p>
         </div>
       </div>
     )
@@ -81,35 +81,35 @@ export default function PaymentTable({ payments, loading, onViewDetails }) {
 
   if (payments.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden">
         <div className="p-8 text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full mb-4">
-            <CreditCard className="w-6 h-6 text-gray-400" />
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full mb-4">
+            <CreditCard className="w-6 h-6 text-gray-400 dark:text-gray-500" />
           </div>
-          <p className="text-gray-500 mb-2">No payments found</p>
-          <p className="text-sm text-gray-400">Payments will appear here once members make transactions</p>
+          <p className="text-gray-500 dark:text-gray-400 mb-2">No payments found</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">Payments will appear here once members make transactions</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden">
       {/* Mobile View */}
       <div className="block sm:hidden">
         {currentPayments.length === 0 ? (
           <div className="p-8 text-center">
-            <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No payment records found</p>
+            <CreditCard className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-gray-400">No payment records found</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-200 dark:divide-gray-800">
             {currentPayments.map((payment) => (
               <div key={payment.id} className="p-4 space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-medium text-gray-900">{payment.userName}</p>
-                    <p className="text-sm text-gray-500">{payment.userEmail}</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{payment.userName}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{payment.userEmail}</p>
                   </div>
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                     payment.status === 'success' 
@@ -122,16 +122,16 @@ export default function PaymentTable({ payments, loading, onViewDetails }) {
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Amount</span>
+                  <span className="text-gray-500 dark:text-gray-400">Amount</span>
                   <span className="font-medium">₹{payment.amount.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Date</span>
+                  <span className="text-gray-500 dark:text-gray-400">Date</span>
                   <span>{formatDate(payment.createdAt)}</span>
                 </div>
                 <button
                   onClick={() => onViewDetails(payment)}
-                  className="w-full mt-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                  className="w-full mt-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30 transition-colors text-sm font-medium"
                 >
                   View Details
                 </button>
@@ -142,44 +142,44 @@ export default function PaymentTable({ payments, loading, onViewDetails }) {
       </div>
 
       {/* Desktop View */}
-      <div className="hidden sm:block overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="hidden sm:block overflow-x-auto -mx-4 sm:mx-0">
+        <table className="admin-table min-w-[1100px] divide-y divide-gray-200 dark:divide-gray-800">
+          <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Transaction
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Member
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Amount
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Plan
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Date
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
             {currentPayments.map((payment, index) => (
-              <tr key={payment.id || index} className="hover:bg-gray-50 transition-colors">
+              <tr key={payment.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
-                    <Hash className="w-4 h-4 text-gray-400 mr-2" />
+                    <Hash className="w-4 h-4 text-gray-400 dark:text-gray-500 mr-2" />
                     <div>
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         {payment.transactionId || 'N/A'}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
                         {payment.orderId || 'No order ID'}
                       </div>
                     </div>
@@ -187,27 +187,27 @@ export default function PaymentTable({ payments, loading, onViewDetails }) {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
-                    <User className="w-4 h-4 text-gray-400 mr-2" />
+                    <User className="w-4 h-4 text-gray-400 dark:text-gray-500 mr-2" />
                     <div>
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         {payment.userName || 'Unknown'}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
                         {payment.userEmail || 'No email'}
                       </div>
                     </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-semibold text-gray-900">
+                  <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                     {formatAmount(payment.amount)}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
+                  <div className="text-sm text-gray-900 dark:text-gray-100">
                     {payment.planName || 'N/A'}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
                     {payment.planDuration || ''}
                   </div>
                 </td>
@@ -215,15 +215,15 @@ export default function PaymentTable({ payments, loading, onViewDetails }) {
                   {getStatusBadge(payment.status)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center text-sm text-gray-900">
-                    <Calendar className="w-4 h-4 text-gray-400 mr-1" />
+                  <div className="flex items-center text-sm text-gray-900 dark:text-gray-100">
+                    <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500 mr-1" />
                     {formatDate(payment.createdAt)}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
                     onClick={() => onViewDetails(payment)}
-                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-700 shadow-sm text-xs font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
                     <Eye className="w-4 h-4 mr-1" />
                     View
@@ -237,26 +237,26 @@ export default function PaymentTable({ payments, loading, onViewDetails }) {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+        <div className="bg-white dark:bg-gray-900 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-800 sm:px-6">
           <div className="flex-1 flex justify-between sm:hidden">
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-700 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-700 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>
           </div>
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
                 Showing{' '}
                 <span className="font-medium">{indexOfFirstItem + 1}</span>
                 {' '}to{' '}
@@ -273,7 +273,7 @@ export default function PaymentTable({ payments, loading, onViewDetails }) {
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
@@ -295,8 +295,8 @@ export default function PaymentTable({ payments, loading, onViewDetails }) {
                         onClick={() => setCurrentPage(pageNumber)}
                         className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                           isCurrentPage
-                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                            : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                            ? 'z-10 bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-300'
+                            : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                         }`}
                       >
                         {pageNumber}
@@ -309,7 +309,7 @@ export default function PaymentTable({ payments, loading, onViewDetails }) {
                     return (
                       <span
                         key={pageNumber}
-                        className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
+                        className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300"
                       >
                         ...
                       </span>
@@ -321,7 +321,7 @@ export default function PaymentTable({ payments, loading, onViewDetails }) {
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronRight className="h-5 w-5" />
                 </button>

@@ -132,18 +132,18 @@ const AdminLogin = () => {
   // Show loading while checking for redirect result or if auth is in progress
   if ((checkingRedirect || authLoading) && !pendingAdmin) {
     return (
-      <div className="min-h-screen bg-[#f8f8f8] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#f8f8f8] dark:bg-gray-950 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <div className="bg-white border border-[#ddd] rounded-lg shadow-sm overflow-hidden">
-            <div className="bg-[#417690] text-white p-4">
+          <div className="bg-white dark:bg-gray-900 border border-[#ddd] dark:border-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <div className="bg-[#417690] dark:bg-gray-800 text-white p-4">
               <h1 className="text-lg font-normal">CSI NMAMIT administration</h1>
             </div>
             <div className="p-6 flex flex-col items-center justify-center">
               <RefreshCw className="w-8 h-8 animate-spin text-[#417690] mb-4" />
-              <p className="text-[#333] text-center">
+              <p className="text-[#333] dark:text-gray-200 text-center">
                 {authLoading ? 'Processing authentication...' : 'Checking authentication status...'}
               </p>
-              <p className="text-xs text-gray-500 mt-2">Please wait...</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Please wait...</p>
             </div>
           </div>
         </div>
@@ -152,12 +152,12 @@ const AdminLogin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f8f8] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#f8f8f8] dark:bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Django-style Login Box */}
-        <div className="bg-white border border-[#ddd] rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 border border-[#ddd] dark:border-gray-800 rounded-lg shadow-sm overflow-hidden">
           {/* Header */}
-          <div className="bg-[#417690] text-white p-4">
+          <div className="bg-[#417690] dark:bg-gray-800 text-white p-4">
             <h1 className="text-lg font-normal">CSI NMAMIT administration</h1>
           </div>
 
@@ -172,21 +172,21 @@ const AdminLogin = () => {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
                 >
-                  <h2 className="text-xl font-normal text-[#333] mb-6">Admin Login</h2>
+                  <h2 className="text-xl font-normal text-[#333] dark:text-gray-200 mb-6">Admin Login</h2>
 
                   <div className="mb-6 space-y-3">
-                    <div className="bg-[#d1ecf1] border border-[#bee5eb] rounded p-3 text-sm text-[#0c5460]">
+                    <div className="bg-[#d1ecf1] border border-[#bee5eb] dark:bg-cyan-900/30 dark:border-cyan-900 rounded p-3 text-sm text-[#0c5460] dark:text-cyan-200">
                       <AlertCircle className="inline w-4 h-4 mr-2" />
                       Only authorized administrators can access this area
                     </div>
 
                     {blockingDetected && (
-                      <div className="bg-[#fff3cd] border border-[#ffeeba] rounded p-3 text-sm text-[#856404]">
+                      <div className="bg-[#fff3cd] border border-[#ffeeba] dark:bg-amber-900/30 dark:border-amber-900 rounded p-3 text-sm text-[#856404] dark:text-amber-200">
                         <ShieldOff className="inline w-4 h-4 mr-2" />
                         <span className="font-medium">Ad blocker detected!</span>
                         <button
                           onClick={() => setShowTroubleshooting(!showTroubleshooting)}
-                          className="ml-2 text-[#0066cc] hover:underline"
+                          className="ml-2 text-[#0066cc] dark:text-blue-400 hover:underline"
                         >
                           {showTroubleshooting ? 'Hide' : 'Show'} troubleshooting
                         </button>
@@ -198,10 +198,10 @@ const AdminLogin = () => {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="bg-[#f8f9fa] border border-[#dee2e6] rounded p-3 text-sm"
+                        className="bg-[#f8f9fa] border border-[#dee2e6] dark:bg-gray-800 dark:border-gray-700 rounded p-3 text-sm"
                       >
                         <p className="font-medium mb-2">To fix authentication issues:</p>
-                        <ol className="list-decimal list-inside space-y-1 text-[#495057]">
+                        <ol className="list-decimal list-inside space-y-1 text-[#495057] dark:text-gray-300">
                           <li>Disable ad blockers (AdBlock, uBlock, etc.) for this site</li>
                           <li>Add this site to your ad blocker's whitelist</li>
                           <li>Check if browser shields/protection is blocking requests</li>
@@ -213,7 +213,7 @@ const AdminLogin = () => {
                     )}
 
                     {!navigator.onLine && (
-                      <div className="bg-[#f8d7da] border border-[#f5c6cb] rounded p-3 text-sm text-[#721c24]">
+                      <div className="bg-[#f8d7da] border border-[#f5c6cb] dark:bg-rose-900/30 dark:border-rose-900 rounded p-3 text-sm text-[#721c24] dark:text-rose-200">
                         <WifiOff className="inline w-4 h-4 mr-2" />
                         No internet connection detected
                       </div>
@@ -223,7 +223,7 @@ const AdminLogin = () => {
                   <button
                     onClick={handleGoogleSignIn}
                     disabled={authLoading}
-                    className="w-full flex items-center justify-center space-x-3 px-4 py-3 bg-white border border-[#ddd] rounded hover:bg-[#f5f5f5] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center space-x-3 px-4 py-3 bg-white dark:bg-gray-900 border border-[#ddd] dark:border-gray-800 rounded hover:bg-[#f5f5f5] dark:hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {authLoading ? (
                       <RefreshCw className="w-5 h-5 animate-spin text-[#417690]" />
@@ -235,7 +235,7 @@ const AdminLogin = () => {
                           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                           <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                         </svg>
-                        <span className="text-[#333]">Sign in with Google</span>
+                        <span className="text-[#333] dark:text-gray-200">Sign in with Google</span>
                       </>
                     )}
                   </button>
@@ -250,17 +250,17 @@ const AdminLogin = () => {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
                 >
-                  <h2 className="text-xl font-normal text-[#333] mb-6">Admin Login Token</h2>
+                  <h2 className="text-xl font-normal text-[#333] dark:text-gray-200 mb-6">Admin Login Token</h2>
 
                   <div className="mb-4 space-y-3">
-                    <div className="p-3 bg-[#fff3cd] border border-[#ffeeba] rounded">
-                      <Clock className="inline w-4 h-4 mr-2 text-[#856404]" />
-                      We sent your admin login token to <span className="font-medium">{pendingAdmin?.email}</span>
+                    <div className="p-3 bg-[#fff3cd] border border-[#ffeeba] dark:bg-amber-900/30 dark:border-amber-900 rounded">
+                      <Clock className="inline w-4 h-4 mr-2 text-[#856404] dark:text-amber-200" />
+                      <span className="dark:text-amber-100">We sent your admin login token to </span><span className="font-medium">{pendingAdmin?.email}</span>
                     </div>
                     {blockingDetected && (
-                      <div className="p-3 bg-[#fff3cd] border border-[#ffeeba] rounded text-sm">
-                        <AlertCircle className="inline w-4 h-4 mr-2 text-[#856404]" />
-                        <span className="text-[#856404]">
+                      <div className="p-3 bg-[#fff3cd] border border-[#ffeeba] dark:bg-amber-900/30 dark:border-amber-900 rounded text-sm">
+                        <AlertCircle className="inline w-4 h-4 mr-2 text-[#856404] dark:text-amber-200" />
+                        <span className="text-[#856404] dark:text-amber-100">
                           If you do not receive your token, please disable ad blockers and try again
                         </span>
                       </div>
@@ -268,12 +268,12 @@ const AdminLogin = () => {
                   </div>
 
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-[#333] mb-2">Enter your admin login token</label>
+                    <label className="block text-sm font-medium text-[#333] dark:text-gray-200 mb-2">Enter your admin login token</label>
                     <input
                       type="password"
                       value={adminToken}
                       onChange={handleTokenInput}
-                      className="w-full h-12 text-center text-lg font-semibold border border-[#ddd] rounded focus:border-[#417690] focus:ring-1 focus:ring-[#417690]"
+                      className="w-full h-12 text-center text-lg font-semibold border border-[#ddd] dark:border-gray-700 rounded focus:border-[#417690] focus:ring-1 focus:ring-[#417690] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
                       disabled={authLoading}
                       maxLength={16}
                       autoComplete="off"
@@ -282,9 +282,9 @@ const AdminLogin = () => {
                   </div>
 
                   {attempts > 0 && (
-                    <div className="mb-4 p-3 bg-[#fff3cd] border border-[#ffeeba] rounded text-sm">
+                    <div className="mb-4 p-3 bg-[#fff3cd] border border-[#ffeeba] dark:bg-amber-900/30 dark:border-amber-900 rounded text-sm">
                       <AlertCircle className="inline w-4 h-4 mr-2" />
-                      {maxAttempts - attempts} attempt{maxAttempts - attempts !== 1 ? 's' : ''} remaining
+                      <span className="dark:text-amber-100">{maxAttempts - attempts} attempt{maxAttempts - attempts !== 1 ? 's' : ''} remaining</span>
                     </div>
                   )}
 
@@ -292,18 +292,18 @@ const AdminLogin = () => {
                     <button
                       onClick={handleResend}
                       disabled={resendTimer > 0 || authLoading}
-                      className={`text-sm ${resendTimer > 0 ? 'text-gray-400 cursor-not-allowed' : 'text-[#417690] hover:text-[#205067]'} flex items-center space-x-1`}
+                      className={`text-sm ${resendTimer > 0 ? 'text-gray-400 cursor-not-allowed' : 'text-[#417690] dark:text-blue-400 hover:text-[#205067] dark:hover:text-blue-300'} flex items-center space-x-1`}
                     >
                       <RefreshCw className="w-4 h-4" />
                       <span>{resendTimer > 0 ? `Resend token in ${resendTimer}s` : 'Resend Token'}</span>
                     </button>
-                    <span className="text-xs text-[#666]">Token valid for limited time</span>
+                    <span className="text-xs text-[#666] dark:text-gray-400">Token valid for limited time</span>
                   </div>
 
                   <button
                     onClick={handleVerify}
                     disabled={authLoading || adminToken.length < 6}
-                    className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-[#417690] text-white rounded hover:bg-[#205067] disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-[#417690] dark:bg-gray-700 text-white rounded hover:bg-[#205067] dark:hover:bg-gray-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
                   >
                     {authLoading ? (
                       <>
@@ -324,7 +324,7 @@ const AdminLogin = () => {
         </div>
 
         {/* Footer */}
-        <div className="mt-6 text-center text-sm text-gray-600">
+        <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
           <p>
             Secure admin access with two-factor authentication
           </p>

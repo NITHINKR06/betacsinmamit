@@ -383,8 +383,9 @@ const AdminEMembers = () => {
       </div>
 
       {/* Members Table */}
-      <div className="bg-white border border-[#ddd] rounded overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white dark:bg-gray-900 border border-[#ddd] dark:border-gray-800 rounded overflow-hidden">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+        <table className="admin-table min-w-[1000px] w-full text-sm">
           <TableHeader
             headers={TABLE_HEADERS}
             sortField={sortField}
@@ -413,6 +414,7 @@ const AdminEMembers = () => {
             ))}
           </tbody>
         </table>
+        </div>
 
         {/* Empty State */}
         {paginatedMembers.length === 0 && (
@@ -423,7 +425,7 @@ const AdminEMembers = () => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="bg-[#f5f5f5] px-4 py-3 flex items-center justify-between border-t border-[#ddd]">
+          <div className="bg-[#f5f5f5] dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-[#ddd] dark:border-gray-800">
             <div className="text-sm text-gray-600">
               Showing {(currentPage - 1) * MEMBERS_PER_PAGE + 1} to{' '}
               {Math.min(currentPage * MEMBERS_PER_PAGE, filteredMembers.length)} of{' '}

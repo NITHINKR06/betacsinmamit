@@ -54,7 +54,7 @@ const Team = () => {
       setFaculty(Array.isArray(teamData.facultyData) ? teamData.facultyData : [])
       setStudents(Array.isArray(teamData.studentTeamData) ? teamData.studentTeamData : [])
       setError(null)
-      toast.success('Loaded cached team data')
+      // toast.success('Loaded cached team data')
     } finally {
       setLoading(false)
     }

@@ -87,7 +87,7 @@ const Events = () => {
       />
 
       {/* Events Grid */}
-      <section className="section-padding">
+      <section className="pt-1 pb-16">
         <div className="container-custom">
           {filteredEvents.length > 0 ? (
             <EventsGrid 
